@@ -9,13 +9,17 @@ import mmaker.orderbooks.Order
  * Date: 31/12/2012
  * Time: 23:12
  */
-class MarketMakerActor(initialBidPrice:Currency, initialAskPrice:Currency, balance:Currency) extends MarketActor {
+class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningRate:Float, balance:Currency) extends MarketActor {
 
-  var bidPrice = initialBidPrice
-  var askPrice = initialAskPrice
+  val this.bidLimitPrice = bidLimitPrice
+  val this.askLimitPrice = askLimitPrice
+  val this.learningRate = learningRate
+  var bidPrice = bidLimitPrice
+  var askPrice = askLimitPrice
   var this.balance = balance
   var stock = 0
 
+  // When this actor is created, we register into the default exchange
   override def preStart() = performRegistration()
 
   protected def receive = {
@@ -99,6 +103,8 @@ class MarketMakerActor(initialBidPrice:Currency, initialAskPrice:Currency, balan
   def decreaseProfitMarginAsk(amount: Long, price:Currency) {
 
   }
+
+  def delta(targetPrice:Currency) = null
 
 
 }
