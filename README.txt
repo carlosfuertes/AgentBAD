@@ -51,7 +51,6 @@ Right button and selecting 'Run...' deberia ser suficiente para ejecutar la test
 === Running the tests using sbt
 *ejecutar $sbt test
 
-
 e.g:
     antonio@Antonios-MacBook-Pro-4:~/Development/Business/AgentBAD [master] $ sbt
     [info] Set current project to AgentBAD (in build file:/Users/antonio/Development/Business/AgentBAD/)
