@@ -8,8 +8,8 @@ import mmaker.utils.currency.Currency
  * Time: 15:21
  */
 trait BookOwner {
-  abstract def orderCompleted(order:Order)
-  abstract def tradeNotification(side:Int, amount:Long, price:Currency)
-  abstract def quoteNotification(side:Int, amount:Long, price:Currency)
-  abstract def orderRejected(order:Order)
+  def orderCompleted(order:Order)
+  def tradeNotification(side:Int, amount:Long, price:Currency)
+  def quoteNotification(side:Int, amount:Long, price:Currency)
+  def orderRejected(order:Order)
 }

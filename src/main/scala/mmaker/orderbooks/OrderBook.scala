@@ -27,17 +27,17 @@ class OrderBook(owner:BookOwner) {
   var sellVolume = 0L
   var buyVolume = 0L
 
-  var bidVWAP = bidQxP / bidQ
-  var askVWAP = askQxP / askQ
+  var bidVWAP = Currency(0)
+  var askVWAP = Currency(0)
 
-  def register(order:Order) = {
+  def register(order:Order) = order match {
     case order:Ask => {
       askOrders += order
-      askOrders = askOrders.sortWith(_.price < _.price)
+      askOrders = askOrders.sortWith(_.price > _.price)
     }
     case order:Bid => {
       bidOrders += order
-      bidOrders = bidOrders.sortWith(_.price > _.price)
+      bidOrders = bidOrders.sortWith(_.price < _.price)
     }
   }
 
@@ -51,7 +51,7 @@ class OrderBook(owner:BookOwner) {
       case Bid(buyAmount,buyPrice) => {
 
         updateBidVWAP(buyAmount,buyPrice)
-        for(ask <- askOrders ) {
+        for(ask <- askOrders) {
           if (ask.price <= buyPrice && order.openAmount > 0) {
             val quantity = if(ask.openAmount >= order.openAmount) order.openAmount else ask.openAmount
             ask.trade(quantity)
@@ -74,7 +74,7 @@ class OrderBook(owner:BookOwner) {
       case Ask(sellAmount, sellPrice) => {
 
         updateAskVWAP(sellAmount,sellPrice)
-        for(bid <- bidOrders ) {
+        for(bid <- bidOrders) {
           if (bid.price <= sellPrice && order.openAmount > 0) {
             val quantity = if(bid.openAmount >= order.openAmount) order.openAmount else bid.openAmount
             bid.trade(quantity)
@@ -98,7 +98,7 @@ class OrderBook(owner:BookOwner) {
        */
 
       case order:Buy => {
-        for(ask <- askOrders ) {
+        for(ask <- askOrders) {
           val buyPrice = ask.price // always buy at market price
           updateBidVWAP(order.openAmount,buyPrice)
 
@@ -125,7 +125,7 @@ class OrderBook(owner:BookOwner) {
 
 
       case order:Sell => {
-        for(bid <- bidOrders ) {
+        for(bid <- bidOrders) {
           val sellPrice = bid.price // always buy at market price
           updateAskVWAP(order.openAmount,sellPrice)
 

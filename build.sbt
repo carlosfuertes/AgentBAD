@@ -13,3 +13,5 @@ resolvers ++= Seq("snapshots" at "http://oss.sonatype.org/content/repositories/s
 
 
 libraryDependencies += "com.typesafe.akka" % "akka-actor" % "2.0.4"
+
+libraryDependencies += "org.scalatest" %% "scalatest" % "1.8" % "test"
