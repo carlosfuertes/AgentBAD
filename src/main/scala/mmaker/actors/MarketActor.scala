@@ -7,8 +7,9 @@ import akka.actor.Actor
  * Date: 31/12/2012
  * Time: 22:42
  */
-class MarketActor extends Actor {
+abstract class MarketActor extends Actor {
 
+  /*
   protected def receive = {
     case "terminate" => {
       println("** TERMINATING")
@@ -16,5 +17,5 @@ class MarketActor extends Actor {
     }
     case msg:String  => println("** RECEIVED "+msg)
   }
-
+  */
 }
