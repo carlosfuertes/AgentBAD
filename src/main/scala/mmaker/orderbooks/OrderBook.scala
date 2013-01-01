@@ -46,6 +46,7 @@ class OrderBook(owner:BookOwner) {
    * @param order
    */
   def processNewOrder(order:Order) = {
+    // @todo Too long! Refactor this method: maybe move each case to a smaller method
     order match {
 
       /*
