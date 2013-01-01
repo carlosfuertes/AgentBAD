@@ -10,6 +10,11 @@ import scala.util.control.Breaks._
  * Time: 23:50
  */
 
+/**
+ * Class wrapping the logic to manage and process orders.
+ *
+ * @param owner The BookOwner object that will receive notifications from the OrderBook
+ */
 class OrderBook(owner:BookOwner) {
 
   val this.owner = owner
@@ -30,17 +35,16 @@ class OrderBook(owner:BookOwner) {
   var bidVWAP = Currency(0)
   var askVWAP = Currency(0)
 
-  def register(order:Order) = order match {
-    case order:Ask => {
-      askOrders += order
-      askOrders = askOrders.sortWith(_.price > _.price)
-    }
-    case order:Bid => {
-      bidOrders += order
-      bidOrders = bidOrders.sortWith(_.price < _.price)
-    }
-  }
-
+  /**
+   * Main entry point to process new orders.
+   * BidVWAP/AskVWAP values are updated according to the new order.
+   * Then, it tries to match the order with previous orders to fulfill the new operations
+   * If there's a remaining amount not satisfied and the order is a limit order, the new order is added to the book in
+   * the right position according to the open amount for the order.
+   * If there's a remaining amount not satisified and the order is a market order, the remaining amount is rejected.
+   * As the order is processed, the right notifications are sent to the book owner.
+   * @param order
+   */
   def processNewOrder(order:Order) = {
     order match {
 
@@ -51,6 +55,8 @@ class OrderBook(owner:BookOwner) {
       case Bid(buyAmount,buyPrice) => {
 
         updateBidVWAP(buyAmount,buyPrice)
+        owner.quoteNotification(Order.BID, bidQ, bidVWAP)
+
         for(ask <- askOrders) {
           if (ask.price <= buyPrice && order.openAmount > 0) {
             val quantity = if(ask.openAmount >= order.openAmount) order.openAmount else ask.openAmount
@@ -60,10 +66,10 @@ class OrderBook(owner:BookOwner) {
             askVolume -= quantity
             buyVolume += quantity
 
+            owner.orderProgress(order, quantity, ask.price)
             if (ask.status == Order.FILLED) owner.orderCompleted(ask)
 
-            owner.tradeNotification(Order.BUY, quantity, buyPrice)
-            owner.quoteNotification(Order.BID, bidQ, bidVWAP)
+            owner.tradeNotification(Order.BUY, quantity, ask.price)
           } else break
         }
 
@@ -74,8 +80,10 @@ class OrderBook(owner:BookOwner) {
       case Ask(sellAmount, sellPrice) => {
 
         updateAskVWAP(sellAmount,sellPrice)
+        owner.quoteNotification(Order.ASK, askQ, askVWAP)
+
         for(bid <- bidOrders) {
-          if (bid.price <= sellPrice && order.openAmount > 0) {
+          if (bid.price >= sellPrice && order.openAmount > 0) {
             val quantity = if(bid.openAmount >= order.openAmount) order.openAmount else bid.openAmount
             bid.trade(quantity)
             order.trade(quantity)
@@ -83,10 +91,10 @@ class OrderBook(owner:BookOwner) {
             bidVolume -= quantity
             sellVolume += quantity
 
+            owner.orderProgress(order, quantity, bid.price)
             if (bid.status == Order.FILLED) owner.orderCompleted(bid)
 
-            owner.tradeNotification(Order.SELL, quantity, sellPrice)
-            owner.quoteNotification(Order.ASK, askQ, askVWAP)
+            owner.tradeNotification(Order.SELL, quantity, bid.price)
           } else break
         }
 
@@ -100,7 +108,9 @@ class OrderBook(owner:BookOwner) {
       case order:Buy => {
         for(ask <- askOrders) {
           val buyPrice = ask.price // always buy at market price
+
           updateBidVWAP(order.openAmount,buyPrice)
+          owner.quoteNotification(Order.BID, bidQ, bidVWAP)
 
           if (order.openAmount > 0) {
             val quantity = if(ask.openAmount >= order.openAmount) order.openAmount else ask.openAmount
@@ -110,24 +120,23 @@ class OrderBook(owner:BookOwner) {
             askVolume -= quantity
             buyVolume += quantity
 
+            owner.orderProgress(order, quantity, buyPrice)
             if (ask.status == Order.FILLED) owner.orderCompleted(ask)
 
             owner.tradeNotification(Order.BUY, quantity, buyPrice)
-            owner.quoteNotification(Order.BID, bidQ, bidVWAP)
           } else break
         }
 
         askOrders = askOrders.filter( _.status != Order.FILLED )
-
-        if(order.openAmount > 0)
-          owner.orderRejected(order) // reject remaining amount
       }
 
 
       case order:Sell => {
         for(bid <- bidOrders) {
           val sellPrice = bid.price // always buy at market price
+
           updateAskVWAP(order.openAmount,sellPrice)
+          owner.quoteNotification(Order.ASK, askQ, askVWAP)
 
           if (order.openAmount > 0) {
             val quantity = if(bid.openAmount >= order.openAmount) order.openAmount else bid.openAmount
@@ -137,17 +146,15 @@ class OrderBook(owner:BookOwner) {
             bidVolume -= quantity
             sellVolume += quantity
 
+            owner.orderProgress(order, quantity, sellPrice)
             if (bid.status == Order.FILLED) owner.orderCompleted(bid)
 
             owner.tradeNotification(Order.SELL, quantity, sellPrice)
-            owner.quoteNotification(Order.ASK, askQ, askQxP)
           } else break
         }
 
         bidOrders = bidOrders.filter( _.status != Order.FILLED )
 
-        if(order.openAmount > 0)
-          owner.orderRejected(order) // reject remaining amount
       }
 
     }
@@ -157,11 +164,31 @@ class OrderBook(owner:BookOwner) {
     else order match {
       case order:Bid => register(order)
       case order:Ask => register(order)
-      case _         => //ignore
+      case _         => owner.orderRejected(order) // reject remaining amount of a market order
     }
 
   }
 
+  /**
+   * Adds a new order to the book in the right position.
+   * @param order
+   */
+  private def register(order:Order) = order match {
+    case order:Ask => {
+      askOrders += order
+      // ask orders are sorted in ascending order.
+      askOrders = askOrders.sortWith(_.price < _.price)
+    }
+    case order:Bid => {
+      bidOrders += order
+      // bid orders are sorted in descending order.
+      bidOrders = bidOrders.sortWith(_.price > _.price)
+    }
+  }
+
+  /**
+   * Weighted average price for bid orders
+   */
   private def updateBidVWAP(quantity:Long, price:Currency) = {
     bidQxP += (price * quantity)
     if (price != 0)
@@ -169,6 +196,11 @@ class OrderBook(owner:BookOwner) {
     bidVWAP = bidQxP / bidQ
   }
 
+  /**
+   * Weighted average price for ask orders
+   * @param quantity
+   * @param price
+   */
   private def updateAskVWAP(quantity:Long, price:Currency) = {
     askQxP += (price * quantity)
     if (price != 0)
