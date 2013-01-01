@@ -1,10 +1,9 @@
 package mmaker.actors
 
-import akka.actor.{ActorContext, ActorRef, Actor}
+import akka.actor.{ActorRef, Actor}
 import mmaker.orderbooks.{Order, BookOwner, OrderBook}
 import mmaker.utils.currency.Currency
 import collection.mutable.MutableList
-import mmaker.Configuration
 import mmaker.messages._
 import akka.util.Timeout
 import akka.pattern.ask
