@@ -10,6 +10,10 @@ import mmaker.orderbooks.Order
  * Time: 23:37
  */
 
+// Market actor registration and acknowledge from the exchange
+case class RegisterMarketActorMsg()
+case class MarketActorRegisteredMsg()
+
 // Base class for all order messages
 abstract class OrderMsg {
   val amount:Long
@@ -35,3 +39,6 @@ case class BuyBroadcastMsg(amount:Long, price:Currency) extends MarketBroadcastM
 case class SellBroadcastMsg(amount:Long, price:Currency) extends MarketBroadcastMsg(Order.SELL)
 case class BidBroadcastMsg(amount:Long, price:Currency) extends MarketBroadcastMsg(Order.BID)
 case class AskBroadcastMsg(amount:Long, price:Currency) extends MarketBroadcastMsg(Order.ASK)
+
+// Only for debugging
+case class IntrospectMsg(information:String)
