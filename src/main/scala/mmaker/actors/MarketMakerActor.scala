@@ -9,14 +9,16 @@ import mmaker.orderbooks.Order
  * Date: 31/12/2012
  * Time: 23:12
  */
-class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningRate:Float, balance:Currency) extends MarketActor {
+class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningRateBid:Float, learningRateAsk:Float, balance:Currency, tradeAmount:Long) extends MarketActor {
 
   val this.bidLimitPrice = bidLimitPrice
   val this.askLimitPrice = askLimitPrice
-  val this.learningRate = learningRate
+  val this.learningRateBid  = learningRateBid
+  val this.learningRateAsk = learningRateAsk
   var bidPrice = bidLimitPrice
   var askPrice = askLimitPrice
   var this.balance = balance
+  val this.tradeAmount = tradeAmount
   var stock = 0
 
   // When this actor is created, we register into the default exchange
@@ -89,22 +91,35 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningR
 
 
   def increaseProfitMarginBid(amount: Long, price:Currency) {
-
+    val unitaryPrice:Currency = price/amount
+    val profitMargin:Currency = updateProfitMargin(unitaryPrice, bidPrice, bidLimitPrice, learningRateBid)
+    bidPrice = bidLimitPrice * (profitMargin + Currency(1)).amount
   }
 
   def decreaseProfitMarginBid(amount: Long, price:Currency) {
-
+    val unitaryPrice:Currency = price/amount
+    val profitMargin:Currency = updateProfitMargin(unitaryPrice, bidPrice, bidLimitPrice, learningRateBid)
+    bidPrice = bidLimitPrice * (profitMargin + Currency(1)).amount
   }
 
   def increaseProfitMarginAsk(amount: Long, price:Currency) {
-
+    val unitaryPrice:Currency = price/amount
+    val profitMargin:Currency = updateProfitMargin(unitaryPrice, askPrice, askLimitPrice, learningRateAsk)
+    askPrice = askLimitPrice * (profitMargin + Currency(1)).amount
   }
 
   def decreaseProfitMarginAsk(amount: Long, price:Currency) {
-
+    val unitaryPrice:Currency = price/amount
+    val profitMargin:Currency = updateProfitMargin(unitaryPrice, askPrice, askLimitPrice, learningRateAsk)
+    askPrice = askLimitPrice * (profitMargin + Currency(1)).amount
   }
 
-  def delta(targetPrice:Currency) = null
 
+  def delta(targetPrice:Currency, currentPrice:Currency, learningRate:Float) = (targetPrice - currentPrice) * learningRate
+
+  def updateProfitMargin(targetPrice:Currency, currentPrice:Currency, limitPrice:Currency, learningRate:Float):Currency = {
+    val variation = delta(targetPrice, currentPrice, learningRate)
+    ((currentPrice + variation) / limitPrice.amount) - Currency(1)
+  }
 
 }
