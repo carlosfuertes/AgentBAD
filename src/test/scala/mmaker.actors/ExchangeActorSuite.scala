@@ -3,7 +3,6 @@ package mmaker.actors
 import org.scalatest.FunSuite
 import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
-import mmaker.actors.{MarketActor, ExchangeActor}
 import mmaker.Configuration
 import akka.util.Timeout
 import akka.dispatch.Await

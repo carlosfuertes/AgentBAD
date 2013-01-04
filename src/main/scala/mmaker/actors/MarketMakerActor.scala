@@ -45,12 +45,12 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningR
       case true => {
         if(bidPrice >= price) {
           // any buyer bi for which pi  q should raise its profit margin
-          increaseProfitMarginBid(amount,price)
+          updateProfitMarginBid(amount,price)
         } else {
           // if the last shout was an offer
           if (side == Order.ASK && bidPrice <= price) {
             // any active buyer bi for which pi  q should lower its margin
-            decreaseProfitMarginBid(amount,price)
+            updateProfitMarginBid(amount,price)
           }
         }
       }
@@ -59,7 +59,7 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningR
         // if the last shout was a bid
         if (side == Order.BID && bidPrice<=price) {
           // any active buyer bi for which pi  q should lower its margin
-          decreaseProfitMarginBid(amount,price)
+          updateProfitMarginBid(amount,price)
         }
       }
     }
@@ -71,12 +71,12 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningR
       case true => {
         if(askPrice <= price) {
           //any seller si for which pi  q should raise its profit margin
-          increaseProfitMarginAsk(amount,price)
+          updateProfitMarginAsk(amount,price)
         } else {
           // if the last shout was a bid
           if (side == Order.BID && askPrice >= price) {
             // any active seller si for which pi  q should lower its margin
-            decreaseProfitMarginAsk(amount,price)
+            updateProfitMarginAsk(amount,price)
           }
         }
       }
@@ -85,35 +85,19 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningR
         // if the last shout was an offer
         if (side == Order.ASK && askPrice>=price) {
           // any active seller si for which pi  q should lower its margin
-          decreaseProfitMarginAsk(amount,price)
+          updateProfitMarginAsk(amount,price)
         }
       }
     }
   }
 
 
-  def increaseProfitMarginBid(amount: Long, price:Currency) {
-    val unitaryPrice:Currency = price/amount
-    val profitMargin:Currency = updateProfitMargin(unitaryPrice, bidPrice, bidLimitPrice, learningRateBid)
-    bidPrice = bidLimitPrice * (profitMargin + Currency(1)).amount
+  def updateProfitMarginBid(amount: Long, price:Currency) {
+    bidPrice = updatePrice(Order.BUY, amount, price, bidPrice, bidLimitPrice, learningRateBid)
   }
 
-  def decreaseProfitMarginBid(amount: Long, price:Currency) {
-    val unitaryPrice:Currency = price/amount
-    val profitMargin:Currency = updateProfitMargin(unitaryPrice, bidPrice, bidLimitPrice, learningRateBid)
-    bidPrice = bidLimitPrice * (profitMargin + Currency(1)).amount
-  }
-
-  def increaseProfitMarginAsk(amount: Long, price:Currency) {
-    val unitaryPrice:Currency = price/amount
-    val profitMargin:Currency = updateProfitMargin(unitaryPrice, askPrice, askLimitPrice, learningRateAsk)
-    askPrice = askLimitPrice * (profitMargin + Currency(1)).amount
-  }
-
-  def decreaseProfitMarginAsk(amount: Long, price:Currency) {
-    val unitaryPrice:Currency = price/amount
-    val profitMargin:Currency = updateProfitMargin(unitaryPrice, askPrice, askLimitPrice, learningRateAsk)
-    askPrice = askLimitPrice * (profitMargin + Currency(1)).amount
+  def updateProfitMarginAsk(amount: Long, price:Currency) {
+    askPrice = updatePrice(Order.SELL, amount, price, askPrice, askLimitPrice, learningRateAsk)
   }
 
 }
@@ -125,7 +109,31 @@ trait ProfitTracker {
 
   def updateProfitMargin(targetPrice:Currency, currentPrice:Currency, limitPrice:Currency, learningRate:Float):Currency = {
     val variation = delta(targetPrice, currentPrice, learningRate)
+    println("- VARIATION: "+variation)
+    println(" --? "+((currentPrice + variation) / limitPrice.amount))
     ((currentPrice + variation) / limitPrice.amount) - Currency(1)
+  }
+
+  def updatePrice(side:Int, newTargetAmount:Long, newTargetPrice:Currency, currentPrice:Currency, limitPrice:Currency, learningRate:Float) = {
+    val unitaryPrice:Currency = newTargetPrice / newTargetAmount
+    println("- UNITARY PRICE: "+unitaryPrice)
+    val profitMargin:Currency = updateProfitMargin(unitaryPrice, currentPrice, limitPrice, learningRate)
+    println("- NEW MARGIN: "+profitMargin)
+    println(" ---? "+(profitMargin + Currency(1)).amount)
+    if (side == Order.SELL) {
+      if (profitMargin > Currency(0)) {
+        limitPrice * (profitMargin + Currency(1)).amount
+      } else {
+        currentPrice
+      }
+    } else {
+      if (profitMargin < Currency(0)) {
+        limitPrice * (profitMargin + Currency(1)).amount
+      } else {
+        currentPrice
+      }
+    }
+
   }
 
 }
