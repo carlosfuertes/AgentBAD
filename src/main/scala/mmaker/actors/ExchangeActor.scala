@@ -18,7 +18,7 @@ class ExchangeActor extends Actor with BookOwner {
 
   // The order book for this exchange
   val orderBook:OrderBook = new OrderBook(this)
-  // The list of actors registered in this market
+  // The list of mmaker.actors registered in this market
   val marketActors:MutableList[ActorRef] = MutableList[ActorRef]()
 
 

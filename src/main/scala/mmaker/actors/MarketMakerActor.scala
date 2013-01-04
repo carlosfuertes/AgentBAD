@@ -1,7 +1,7 @@
 package mmaker.actors
 
 import mmaker.utils.currency.Currency
-import mmaker.messages.{SellBroadcastMsg, BuyBroadcastMsg, AskBroadcastMsg, BidBroadcastMsg}
+import mmaker.messages.{SellBroadcastMsg, BuyBroadcastMsg}
 import mmaker.orderbooks.Order
 
 /**
@@ -9,7 +9,9 @@ import mmaker.orderbooks.Order
  * Date: 31/12/2012
  * Time: 23:12
  */
-class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningRateBid:Float, learningRateAsk:Float, balance:Currency, tradeAmount:Long) extends MarketActor {
+class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningRateBid:Float, learningRateAsk:Float, balance:Currency, tradeAmount:Long)
+  extends MarketActor
+  with ProfitTracker {
 
   val this.bidLimitPrice = bidLimitPrice
   val this.askLimitPrice = askLimitPrice
@@ -114,6 +116,10 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningR
     askPrice = askLimitPrice * (profitMargin + Currency(1)).amount
   }
 
+}
+
+
+trait ProfitTracker {
 
   def delta(targetPrice:Currency, currentPrice:Currency, learningRate:Float) = (targetPrice - currentPrice) * learningRate
 

@@ -1,4 +1,4 @@
-package mmaker.orderbooks
+package mmaker.actors
 
 import org.scalatest.FunSuite
 import akka.actor.ActorSystem

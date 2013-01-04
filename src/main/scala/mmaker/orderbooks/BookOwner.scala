@@ -11,8 +11,8 @@ import mmaker.utils.currency.Currency
 /**
  * This class receives notifications from an OrderBook object with
  * events regarding the fulfillment of limit and market orders.
- * These notifications can be used by the owner to broadcast market information to the market actors
- * or to notify particular actors about the progress of their orders.
+ * These notifications can be used by the owner to broadcast market information to the market mmaker.actors
+ * or to notify particular mmaker.actors about the progress of their orders.
  */
 trait BookOwner {
   /**
