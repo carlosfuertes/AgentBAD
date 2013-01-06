@@ -21,6 +21,10 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningR
   var askPrice = askLimitPrice
   var this.balance = balance
   val this.tradeAmount = tradeAmount
+  var momentumBid:Currency = Currency(scala.math.random)
+  var momentumAsk:Currency = Currency(scala.math.random)
+  var lastChangeBid:Currency = Currency(0)
+  var lastChangeAsk:Currency = Currency(0)
   var stock = 0
 
   // When this actor is created, we register into the default exchange
@@ -93,11 +97,22 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningR
 
 
   def updateProfitMarginBid(amount: Long, price:Currency) {
-    bidPrice = updatePrice(Order.BUY, amount, price, bidPrice, bidLimitPrice, learningRateBid)
+    updatePrice(Order.BUY, amount, price, bidPrice, bidLimitPrice, learningRateBid, momentumBid, lastChangeBid) match {
+      case (newChange, newBidPrice) => {
+        bidPrice = newBidPrice
+        lastChangeBid = newChange
+      }
+    }
+
   }
 
   def updateProfitMarginAsk(amount: Long, price:Currency) {
-    askPrice = updatePrice(Order.SELL, amount, price, askPrice, askLimitPrice, learningRateAsk)
+    updatePrice(Order.SELL, amount, price, askPrice, askLimitPrice, learningRateAsk, momentumAsk, lastChangeAsk) match {
+      case (newChange, newAskPrice) => {
+        askPrice = newAskPrice
+        lastChangeAsk = newChange
+      }
+    }
   }
 
 }
@@ -107,30 +122,44 @@ trait ProfitTracker {
 
   def delta(targetPrice:Currency, currentPrice:Currency, learningRate:Float) = (targetPrice - currentPrice) * learningRate
 
-  def updateProfitMargin(targetPrice:Currency, currentPrice:Currency, limitPrice:Currency, learningRate:Float):Currency = {
+  def updateProfitMargin(targetPrice:Currency, currentPrice:Currency, limitPrice:Currency, learningRate:Float, momentum:Currency, lastChange:Currency):(Currency,Currency)= {
     val variation = delta(targetPrice, currentPrice, learningRate)
+    val adjustedDelta = ((Currency(1.0) - momentum) * variation.amount) + (momentum * lastChange.amount)
+
     println("- VARIATION: "+variation)
-    println(" --? "+((currentPrice + variation) / limitPrice.amount))
-    ((currentPrice + variation) / limitPrice.amount) - Currency(1)
+    println("- ADJUSTED DELTA "+adjustedDelta)
+    println(" --? "+((currentPrice + adjustedDelta) / limitPrice.amount))
+    (adjustedDelta, ((currentPrice + adjustedDelta) / limitPrice.amount) - Currency(1))
   }
 
-  def updatePrice(side:Int, newTargetAmount:Long, newTargetPrice:Currency, currentPrice:Currency, limitPrice:Currency, learningRate:Float) = {
+  def updatePrice(side:Int, newTargetAmount:Long, newTargetPrice:Currency, currentPrice:Currency, limitPrice:Currency, learningRate:Float, momentum:Currency, lastChange:Currency):(Currency,Currency) = {
     val unitaryPrice:Currency = newTargetPrice / newTargetAmount
     println("- UNITARY PRICE: "+unitaryPrice)
-    val profitMargin:Currency = updateProfitMargin(unitaryPrice, currentPrice, limitPrice, learningRate)
-    println("- NEW MARGIN: "+profitMargin)
-    println(" ---? "+(profitMargin + Currency(1)).amount)
-    if (side == Order.SELL) {
-      if (profitMargin > Currency(0)) {
-        limitPrice * (profitMargin + Currency(1)).amount
-      } else {
-        currentPrice
-      }
-    } else {
-      if (profitMargin < Currency(0)) {
-        limitPrice * (profitMargin + Currency(1)).amount
-      } else {
-        currentPrice
+    updateProfitMargin(unitaryPrice, currentPrice, limitPrice, learningRate, momentum, lastChange) match {
+      case (change,profitMargin) => {
+
+        println("- NEW MARGIN: "+profitMargin)
+        println(" ---? "+(profitMargin + Currency(1)).amount)
+        if (side == Order.SELL) {
+          println("- SELL ORDER")
+          if (profitMargin > Currency(0)) {
+            println("- POSITIVE PROFIT MARGIN -> let's do it")
+            (change,limitPrice * (profitMargin + Currency(1)).amount)
+          } else {
+            println("- NEGATIVE PROFIT MARGIN -> nope")
+            (change,currentPrice)
+          }
+        } else {
+          println("- BUY ORDER")
+          if (profitMargin < Currency(0)) {
+            println("- NEGATIVE PROFIT MARGIN -> let's do it")
+            (change,limitPrice * (profitMargin + Currency(1)).amount)
+          } else {
+            println("- POSITIVE PROFIT MARGIN -> nope")
+            (change,currentPrice)
+          }
+        }
+
       }
     }
 

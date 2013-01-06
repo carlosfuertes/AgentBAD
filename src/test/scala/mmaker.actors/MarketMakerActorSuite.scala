@@ -26,12 +26,14 @@ class MarketMakerActorSuite extends FunSuite with ProfitTracker {
   }
 
   test("The profit margin should change correctly according to the output of the delta function") {
-    var result = updateProfitMargin(Currency(100), Currency(90), Currency(1000), 0.1F)
+    val momentum:Currency = Currency(scala.math.random) + Currency(0.2)
+    var result = updateProfitMargin(Currency(100), Currency(90), Currency(1000), 0.1F, momentum, Currency(0.0))
     println("UPDATED PROFIT MARGIN: "+result)
   }
 
   test("Prices should be updated correctly") {
-    var result = updatePrice(Order.BUY, 1L, Currency(100), Currency(90), Currency(1000), 0.1F);
+    val momentum:Currency = Currency(scala.math.random) + Currency(0.2)
+    var result = updatePrice(Order.BUY, 1L, Currency(100), Currency(80), Currency(1000), 0.1F, momentum, Currency(0.0));
 
     println("NEW PRICE: "+result)
   }
