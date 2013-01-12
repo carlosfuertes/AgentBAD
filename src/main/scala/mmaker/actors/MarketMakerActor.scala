@@ -9,26 +9,16 @@ import mmaker.orderbooks.Order
  * Date: 31/12/2012
  * Time: 23:12
  */
-class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningRateBid:Float, learningRateAsk:Float, balance:Currency, tradeAmount:Long)
-  extends MarketActor
-  with ProfitTracker {
+class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, balance:Currency, tradeAmount:Long)
+  extends MarketActor {
 
-  val this.bidLimitPrice = bidLimitPrice
-  val this.askLimitPrice = askLimitPrice
-  val this.learningRateBid  = learningRateBid
-  val this.learningRateAsk = learningRateAsk
-  var bidPrice = bidLimitPrice
-  var askPrice = askLimitPrice
-  var this.balance = balance
-  val this.tradeAmount = tradeAmount
-  var momentumBid:Currency = Currency(scala.math.random)
-  var momentumAsk:Currency = Currency(scala.math.random)
-  var lastChangeBid:Currency = Currency(0)
-  var lastChangeAsk:Currency = Currency(0)
-  var stock = 0
+  var this.balance:Currency = balance
+  var this.tradeAmount:Long = tradeAmount
+  var bidder:ZIP8Agent = new ZIP8Agent(ZIP8Agent.BID, bidLimitPrice)
+  var asker:ZIP8Agent = new ZIP8Agent(ZIP8Agent.OFFER,askLimitPrice)
 
   // When this actor is created, we register into the default exchange
-  override def preStart() = performRegistration()
+  override def preStart() { performRegistration() }
 
   protected def receive = {
     case BuyBroadcastMsg(amount,price)  => updateBidAsk(Order.BID,false,amount,price)
@@ -44,125 +34,171 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, learningR
   }
 
   def updateBid(side: Int, success: Boolean, amount: Long, price: Currency) {
-    success match {
-      // if the last shout was accepted at price q
-      case true => {
-        if(bidPrice >= price) {
-          // any buyer bi for which pi  q should raise its profit margin
-          updateProfitMarginBid(amount,price)
-        } else {
-          // if the last shout was an offer
-          if (side == Order.ASK && bidPrice <= price) {
-            // any active buyer bi for which pi  q should lower its margin
-            updateProfitMarginBid(amount,price)
-          }
-        }
-      }
-      // else
-      case false => {
-        // if the last shout was a bid
-        if (side == Order.BID && bidPrice<=price) {
-          // any active buyer bi for which pi  q should lower its margin
-          updateProfitMarginBid(amount,price)
-        }
-      }
+    side match {
+      case Order.BID => bidder.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.NO_DEAL, price)
+      case Order.ASK => bidder.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.NO_DEAL, price)
     }
   }
 
   def updateAsk(side: Int, success: Boolean, amount: Long, price: Currency) {
-    success match {
-      // if the last shout was accepted at price q
-      case true => {
-        if(askPrice <= price) {
-          //any seller si for which pi  q should raise its profit margin
-          updateProfitMarginAsk(amount,price)
+    side match {
+      case Order.BID => asker.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.NO_DEAL, price)
+      case Order.ASK => asker.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.NO_DEAL, price)
+    }
+  }
+
+
+}
+
+/**
+ * Implementation of a Zip8 agent according to C++ sample implementation
+ */
+class ZIP8Agent(side:Int, limit:Currency) {
+
+  var job:Int = side// BUYing or SELLing
+  var active:Boolean = true // still in the market?
+  //var n:Int = 0 // number of deals done
+  var willing:Boolean=true // want to make a trade at this price?
+  //var able:Int // allowed to trade at this limit price?
+
+  var this.limit:Currency = limit // the bottomline price for this agent
+
+  // profit coefficient in determining bid/offer price
+  var profit:Currency = if(job == ZIP8Agent.BUY) {
+      Currency(-1.0 * (0.05 + ZIP8Agent.randval(0.3)))
+    } else {
+      Currency(0.05 + ZIP8Agent.randval(0.3))
+    }
+
+  var beta:Double = 0.1 + ZIP8Agent.randval(0.4) // coefficient for changing profit over time
+  var momntm:Double = ZIP8Agent.randval(0.1) // momentum for changing price over time
+  var lastd:Double = 0.0 // last change
+  var price:Currency = Currency(0.0) // what the agent will actually trade
+  // var this.quant:Double = quant // how much of this commodity
+  // var bank:Currency = Currency(0.0)// how much money this agent has in the bank
+  // var actualGain:Currency = Currency(0.0)// actual gain
+  // var theoreticalGain:Currency // theoretical gain
+  // var sum:Currency = Currency(0.0) // in determining average reward
+  //var avg:Currency // average reward
+
+
+  // initialize the price
+  setPrice()
+
+
+  def setPrice()  {
+    this.price = (Currency(1) + profit) * limit.amount
+    this.price = ((price * Currency(100).amount) + Currency(0.5)) / 100
+  }
+
+
+  def willingTrade(price:Currency) = {
+    if (side == ZIP8Agent.BUY) {
+      if(active && this.price >= price)
+        willing = true
+      else
+        willing = false
+    } else {
+      if(active && this.price <= price)
+        willing = true
+      else
+        willing = false
+    }
+
+    willing
+  }
+
+  def profitAlter(price:Currency)  {
+    val diff:Currency = price - this.price
+    val change:Double = ((diff * (1.0 - momntm) * beta) + Currency(momntm * lastd)).toDouble
+    lastd = change
+
+    val newProfit:Currency = ((this.price + Currency(change)) / limit.amount) - Currency(1.0)
+
+    this.profit = newProfit
+    /*
+    if(job == ZIP8Agent.SELL) {
+
+      if (newProfit > Currency(0.0)) this.profit = newProfit
+    } else {
+      if(newProfit < Currency(0.0)) this.profit = newProfit
+    }
+    */
+
+    setPrice()
+  }
+
+  /**
+   * Updates the shout price of a ZIP8 trader according to
+   * the pseudocode in section 6.1 of Cliff's paper
+   * @param dealType bid or sell
+   * @param status deal or not deal
+   * @param price the unit price of the shout
+   */
+  def shoutUpdate(dealType:Int, status:Int, price:Currency)  {
+    var targetPrice = 0.0D
+
+    if (job == ZIP8Agent.SELL) { // SELLER
+      if(status == ZIP8Agent.DEAL) {
+        if(this.price <= price) {
+          // increment profit
+          // could get more? try raising margin
+          targetPrice = ((1.0+ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) + ZIP8Agent.randval(0.05)
+          profitAlter(Currency(targetPrice))
         } else {
-          // if the last shout was a bid
-          if (side == Order.BID && askPrice >= price) {
-            // any active seller si for which pi  q should lower its margin
-            updateProfitMarginAsk(amount,price)
+          if(dealType == ZIP8Agent.BID && !willingTrade(price) && active) {
+            // decrement profit
+            // wouldnt have got this deal so mark the price down
+            targetPrice = ((1.0-ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) - ZIP8Agent.randval(0.05)
+          }
+        }
+      } else { // NO_DEAL
+        if(dealType == ZIP8Agent.OFFER) {
+          if(this.price >= price && active) {
+            // decrement profit
+            // would have asked for more and lost the deal so reduce profit
+            targetPrice = ((1.0-ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) - ZIP8Agent.randval(0.05)
+            profitAlter(Currency(targetPrice))
           }
         }
       }
-      // else
-      case false => {
-        // if the last shout was an offer
-        if (side == Order.ASK && askPrice>=price) {
-          // any active seller si for which pi  q should lower its margin
-          updateProfitMarginAsk(amount,price)
+    } else { // BUYER
+      if (status == ZIP8Agent.DEAL) {
+        if(this.price >= price) {
+          targetPrice = ((1.0-ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) - ZIP8Agent.randval(0.05)
+          profitAlter(Currency(targetPrice))
+        } else {
+          if(status == ZIP8Agent.OFFER && !willingTrade(price) && active) {
+            targetPrice = ((1.0+ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) + ZIP8Agent.randval(0.05)
+            profitAlter(Currency(targetPrice))
+          }
         }
-      }
-    }
-  }
-
-
-  def updateProfitMarginBid(amount: Long, price:Currency) {
-    updatePrice(Order.BUY, amount, price, bidPrice, bidLimitPrice, learningRateBid, momentumBid, lastChangeBid) match {
-      case (newChange, newBidPrice) => {
-        bidPrice = newBidPrice
-        lastChangeBid = newChange
-      }
-    }
-
-  }
-
-  def updateProfitMarginAsk(amount: Long, price:Currency) {
-    updatePrice(Order.SELL, amount, price, askPrice, askLimitPrice, learningRateAsk, momentumAsk, lastChangeAsk) match {
-      case (newChange, newAskPrice) => {
-        askPrice = newAskPrice
-        lastChangeAsk = newChange
+      } else { // NO_DEAL
+        if(dealType == ZIP8Agent.BID) {
+          if(this.price <= price && active){
+            targetPrice = ((1.0+ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) + ZIP8Agent.randval(0.05)
+            profitAlter(Currency(targetPrice))
+          }
+        }
       }
     }
   }
 
 }
 
+object ZIP8Agent {
+  val BUY:Int = 1
+  val SELL:Int = 0
+  val BID:Int = 1
+  val OFFER:Int = 0
+  val DEAL:Int = 1
+  val NO_DEAL:Int = 0
+  val END_DAY:Int = 0
 
-trait ProfitTracker {
+  val BONUS:Currency = Currency(0.0)
+  val MARKUP:Double = 1.1
+  val MARKDOWN:Double = 0.9
+  val MARK:Double = 0.5
 
-  def delta(targetPrice:Currency, currentPrice:Currency, learningRate:Float) = (targetPrice - currentPrice) * learningRate
-
-  def updateProfitMargin(targetPrice:Currency, currentPrice:Currency, limitPrice:Currency, learningRate:Float, momentum:Currency, lastChange:Currency):(Currency,Currency)= {
-    val variation = delta(targetPrice, currentPrice, learningRate)
-    val adjustedDelta = ((Currency(1.0) - momentum) * variation.amount) + (momentum * lastChange.amount)
-
-    println("- VARIATION: "+variation)
-    println("- ADJUSTED DELTA "+adjustedDelta)
-    println(" --? "+((currentPrice + adjustedDelta) / limitPrice.amount))
-    (adjustedDelta, ((currentPrice + adjustedDelta) / limitPrice.amount) - Currency(1))
-  }
-
-  def updatePrice(side:Int, newTargetAmount:Long, newTargetPrice:Currency, currentPrice:Currency, limitPrice:Currency, learningRate:Float, momentum:Currency, lastChange:Currency):(Currency,Currency) = {
-    val unitaryPrice:Currency = newTargetPrice / newTargetAmount
-    println("- UNITARY PRICE: "+unitaryPrice)
-    updateProfitMargin(unitaryPrice, currentPrice, limitPrice, learningRate, momentum, lastChange) match {
-      case (change,profitMargin) => {
-
-        println("- NEW MARGIN: "+profitMargin)
-        println(" ---? "+(profitMargin + Currency(1)).amount)
-        if (side == Order.SELL) {
-          println("- SELL ORDER")
-          if (profitMargin > Currency(0)) {
-            println("- POSITIVE PROFIT MARGIN -> let's do it")
-            (change,limitPrice * (profitMargin + Currency(1)).amount)
-          } else {
-            println("- NEGATIVE PROFIT MARGIN -> nope")
-            (change,currentPrice)
-          }
-        } else {
-          println("- BUY ORDER")
-          if (profitMargin < Currency(0)) {
-            println("- NEGATIVE PROFIT MARGIN -> let's do it")
-            (change,limitPrice * (profitMargin + Currency(1)).amount)
-          } else {
-            println("- POSITIVE PROFIT MARGIN -> nope")
-            (change,currentPrice)
-          }
-        }
-
-      }
-    }
-
-  }
-
+  def randval(limit:Double):Double = scala.util.Random.nextInt((limit*100D).toInt).toDouble / 100.0D
 }
