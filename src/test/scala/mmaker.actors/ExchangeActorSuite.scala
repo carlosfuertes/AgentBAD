@@ -63,6 +63,8 @@ class ExchangeActorSuite extends FunSuite {
 
     val numMarketActorsAfter = ExchangeActor.numberRegisteredActors(exchange)
     assert(numMarketActorsAfter === 1)
+
+    system.shutdown()
   }
 }
 
@@ -70,7 +72,7 @@ class MarketMechanismSuite extends FunSuite {
   test("It should be possible to send order messages to the exchange actor receiving the right registration message back") {
     implicit val system = ActorSystem("MarketMechanismSuite1")
 
-    val exchange = TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
+    TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
 
     //println("*** PRE EXCHANGE REF: "+exchange)
     Thread.sleep(2000)
@@ -82,13 +84,86 @@ class MarketMechanismSuite extends FunSuite {
 
     Thread.sleep(2000)
 
+    MarketActor.trigger_bid(mmaker)
+
+    Thread.sleep(2000)
+
+    MarketActor.trigger_buy(mmaker)
+
+    Thread.sleep(2000)
+
+    MarketActor.trigger_sell(mmaker)
+
+    Thread.sleep(2000)
+
     val result = MarketActor.get_registered_orders(mmaker)
 
-    assert(result.keys.size === 1)
-    val key = result.keysIterator.next()
-    val orderTracking = result(key)
+    assert(result.keys.size === 4)
+    val iterator = result.keysIterator
+    var key = iterator.next()
+    var orderTracking = result(key)
+    var acum = 0
+
 
     assert(key === orderTracking.clientId)
-    assert(orderTracking.side === Order.ASK)
+    assert(orderTracking.isRegistered)
+    acum += orderTracking.side
+
+    key = iterator.next()
+    orderTracking = result(key)
+
+    assert(key === orderTracking.clientId)
+    assert(orderTracking.isRegistered)
+    acum += orderTracking.side
+
+    key = iterator.next()
+    orderTracking = result(key)
+
+    assert(key === orderTracking.clientId)
+    assert(orderTracking.isRegistered)
+    acum += orderTracking.side
+
+    key = iterator.next()
+    orderTracking = result(key)
+
+    assert(key === orderTracking.clientId)
+    assert(orderTracking.isRegistered)
+    acum += orderTracking.side
+
+    assert(acum === Order.ASK + Order.BID + Order.BUY + Order.SELL)
+
+    system.shutdown()
+  }
+
+  test("It should be possible for market actors to send bid/ask messages to the exchange and be notified correcly about the progress of these orders") {
+
+    implicit val system = ActorSystem("MarketMechanismSuite2")
+
+    TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
+    Thread.sleep(2000)
+
+    val buyer = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
+    Thread.sleep(2000)
+
+    val seller = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
+    Thread.sleep(2000)
+
+    MarketActor.trigger_ask(seller,10,100)
+    Thread.sleep(2000)
+    MarketActor.trigger_bid(buyer,5,150)
+    Thread.sleep(2000)
+    MarketActor.trigger_bid(buyer,5,150)
+    Thread.sleep(2000)
+    MarketActor.trigger_bid(buyer,5,150)
+    Thread.sleep(2000)
+
+
+    val buyerBalance = MarketActor.get_balance(buyer)
+    val sellerBalance = MarketActor.get_balance(seller)
+
+    assert(buyerBalance.balance == Currency(-1000))
+    assert(sellerBalance.balance == Currency(1000))
+
+    system.shutdown()
   }
 }

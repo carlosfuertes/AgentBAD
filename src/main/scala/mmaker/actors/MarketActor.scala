@@ -20,7 +20,32 @@ import scala.collection.mutable.Map
  * Time: 22:42
  */
 
+
+/**
+ * Handles the balance of a market actor.
+ * @param initialAmount The initial balance account.
+ */
+class Bank(initialAmount:Currency=Currency(0)) {
+
+  var balance:Currency = initialAmount
+
+  def track(side:Int, price:Currency, amount:Long=1) {
+    side match {
+      case Order.ASK  => balance += (price * amount)
+      case Order.SELL => balance += price
+      case Order.BID  => balance -= (price * amount)
+      case Order.BUY  => balance -= price
+    }
+  }
+
+}
+
+/**
+ * A class that is capable of tracking the evolution of a market order.
+ * @param order the Order to track.
+ */
 class OrderTracking(order:OrderMsg) {
+
   val clientId = order.clientId
   var id:String = null
   var side:Int = -1
@@ -45,17 +70,34 @@ class OrderTracking(order:OrderMsg) {
   def track(msg:Object) = msg match {
     case OrderRegisteredMsg(id,clientId) => {
       this.id = id
+      this.status = OrderTracking.REGISTERED
+    }
+
+    case OrderProgressMsg(id,_,_) => {
       this.status = OrderTracking.IN_PROGRESS
     }
+
+    case OrderCompletedMsg(id) => {
+      this.status = OrderTracking.COMPLETED
+    }
+
     case msg => println("*** Handler for msg "+msg+" not implemented yet")
   }
 
   def isRegistered = this.status != OrderTracking.UNREGISTERED
+
+  def isCompleted = status == OrderTracking.COMPLETED
+
+  def completeOrder() {
+    status = OrderTracking.COMPLETED
+  }
+
 }
 
 object OrderTracking {
 
   val UNREGISTERED = 0
+  val REGISTERED = 1
   val IN_PROGRESS = 2
   val COMPLETED = 3
   val CANCELLED = 4
@@ -67,6 +109,7 @@ object OrderTracking {
  */
 abstract class MarketActor extends Actor {
 
+  var balance:Bank = new Bank
   // Is this market actor registered in an exchange
   var registered = false
   var exchange:ActorRef = null
@@ -78,7 +121,11 @@ abstract class MarketActor extends Actor {
    */
   def defaultMsgHandler(msg:Any) = msg match {
     case msg:OrderRegisteredMsg    => orderRegistered(msg)
-    case IntrospectMsg(msg:String) => introspect(msg)
+    case msg:OrderProgressMsg      => orderTrack(msg)
+    case msg:OrderCompletedMsg     => orderTrack(msg)
+
+    case IntrospectMsg(msg:String,args) => introspect(msg,args)
+
     case _                         => println("Unknown msg "+msg)
   }
 
@@ -137,28 +184,47 @@ abstract class MarketActor extends Actor {
     }
   }
 
+  def orderTrack(order:ExchangeOrderNotificationMsg) {
+
+    val tracker = orderTracker(idToClientId(order.id))
+
+    tracker.track(order)
+
+    order match {
+      case OrderProgressMsg(id, amount, price) => {
+        balance.track(tracker.side, price, amount)
+      }
+      case OrderCompletedMsg(id) => {
+        tracker.completeOrder()
+      }
+    }
+
+  }
+
   // DEBUG
 
-  def introspect(msg: String) {
+  def introspect(msg: String, args: List[String]) {
     msg match {
       case MarketActor.TRIGGER_ASK_MESSAGE  => {
-        val order = shoutPrice(Order.ASK,1L, Currency(scala.util.Random.nextInt(1000)))
+        val order = shoutPrice(Order.ASK,args(0).toLong, Currency(args(1).toLong))
         orderCreated(order)
       }
       case MarketActor.TRIGGER_BID_MESSAGE  => {
-        val order = shoutPrice(Order.BID,1L, Currency(scala.util.Random.nextInt(1000)))
+        val order = shoutPrice(Order.BID,args(0).toLong, Currency(args(1).toLong))
         orderCreated(order)
       }
       case MarketActor.TRIGGER_BUY_MESSAGE  => {
-        val order = shoutPrice(Order.BID,1L, null)
+        val order = shoutPrice(Order.BID,args(0).toLong, null)
         orderCreated(order)
       }
       case MarketActor.TRIGGER_SELL_MESSAGE => {
-        val order = shoutPrice(Order.ASK,1L, null)
+        val order = shoutPrice(Order.ASK,args(0).toLong, null)
         orderCreated(order)
       }
 
       case MarketActor.GET_REGISTERED_ORDERS => sender ! orderTracker
+
+      case MarketActor.GET_BALANCE => sender ! balance
     }
   }
 }
@@ -173,11 +239,20 @@ object MarketActor {
   val TRIGGER_BUY_MESSAGE = "trigger_buy_message"
   val TRIGGER_SELL_MESSAGE = "trigger_sell_message"
   val GET_REGISTERED_ORDERS = "get_registered_orders"
+  val GET_BALANCE = "get_bank_balance"
 
-  def trigger_ask(marketActor:ActorRef) { marketActor ! IntrospectMsg(TRIGGER_ASK_MESSAGE) }
-  def trigger_bid(marketActor:ActorRef) { marketActor ! IntrospectMsg(TRIGGER_BID_MESSAGE) }
-  def trigger_sell(marketActor:ActorRef) { marketActor ! IntrospectMsg(TRIGGER_SELL_MESSAGE) }
-  def trigger_buy(marketActor:ActorRef) { marketActor ! IntrospectMsg(TRIGGER_BUY_MESSAGE) }
+  def trigger_ask(marketActor:ActorRef, amount:Long=1, price:Long=scala.util.Random.nextInt(1000)) {
+    marketActor ! IntrospectMsg(TRIGGER_ASK_MESSAGE, List[String](amount.toString,price.toString))
+  }
+  def trigger_bid(marketActor:ActorRef, amount:Long=1, price:Long=scala.util.Random.nextInt(1000)) {
+    marketActor ! IntrospectMsg(TRIGGER_BID_MESSAGE, List[String](amount.toString, price.toString))
+  }
+  def trigger_sell(marketActor:ActorRef, amount:Long=1) {
+    marketActor ! IntrospectMsg(TRIGGER_SELL_MESSAGE, List[String](amount.toString))
+  }
+  def trigger_buy(marketActor:ActorRef, amount:Long=1) {
+    marketActor ! IntrospectMsg(TRIGGER_BUY_MESSAGE, List[String](amount.toString))
+  }
 
   def get_registered_orders(marketActor:ActorRef):Map[String,OrderTracking] = {
     implicit val timeout = Timeout(MarketActor.CREATION_TIMEOUT)
@@ -189,4 +264,13 @@ object MarketActor {
     }
   }
 
+  def get_balance(marketActor:ActorRef):Bank = {
+    implicit val timeout = Timeout(MarketActor.CREATION_TIMEOUT)
+    val future = marketActor ? IntrospectMsg(GET_BALANCE)
+    val result = Await.result(future, MarketActor.REGISTRATION_TIMEOUT)
+    result match {
+      case r:Bank => r
+      case _      => throw new Exception("Error introspecting "+GET_BALANCE)
+    }
+  }
 }

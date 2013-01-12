@@ -68,6 +68,8 @@ class OrderBook(owner:BookOwner) {
             buyVolume += quantity
 
             owner.orderProgress(order, quantity, ask.price)
+            owner.orderProgress(ask, quantity, ask.price)
+
             if (ask.status == Order.FILLED) owner.orderCompleted(ask)
 
             owner.tradeNotification(Order.BUY, quantity, ask.price)
@@ -93,6 +95,8 @@ class OrderBook(owner:BookOwner) {
             sellVolume += quantity
 
             owner.orderProgress(order, quantity, bid.price)
+            owner.orderProgress(bid, quantity, bid.price)
+
             if (bid.status == Order.FILLED) owner.orderCompleted(bid)
 
             owner.tradeNotification(Order.SELL, quantity, bid.price)
@@ -122,6 +126,8 @@ class OrderBook(owner:BookOwner) {
             buyVolume += quantity
 
             owner.orderProgress(order, quantity, buyPrice)
+            owner.orderProgress(ask, quantity, buyPrice)
+
             if (ask.status == Order.FILLED) owner.orderCompleted(ask)
 
             owner.tradeNotification(Order.BUY, quantity, buyPrice)
@@ -148,6 +154,8 @@ class OrderBook(owner:BookOwner) {
             sellVolume += quantity
 
             owner.orderProgress(order, quantity, sellPrice)
+            owner.orderProgress(bid, quantity, sellPrice)
+
             if (bid.status == Order.FILLED) owner.orderCompleted(bid)
 
             owner.tradeNotification(Order.SELL, quantity, sellPrice)

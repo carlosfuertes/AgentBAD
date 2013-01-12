@@ -1,8 +1,12 @@
 package mmaker.actors
 
 import mmaker.utils.currency.Currency
-import mmaker.messages.{OrderRegisteredMsg, SellBroadcastMsg, BuyBroadcastMsg}
+import mmaker.messages._
 import mmaker.orderbooks.Order
+import mmaker.messages.OrderRegisteredMsg
+import mmaker.messages.OrderProgressMsg
+import mmaker.messages.SellBroadcastMsg
+import mmaker.messages.BuyBroadcastMsg
 
 /**
  * User: Antonio Garrote
@@ -12,7 +16,6 @@ import mmaker.orderbooks.Order
 class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
   extends MarketActor {
 
-  var balance:Currency = Currency(0.0)
   //var this.tradeAmount:Long = tradeAmount
   var bidder:ZIP8Agent = new ZIP8Agent(ZIP8Agent.BID, bidLimitPrice)
   var asker:ZIP8Agent = new ZIP8Agent(ZIP8Agent.OFFER,askLimitPrice)
@@ -23,7 +26,6 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
   protected def receive = {
     case BuyBroadcastMsg(amount,price)  => updateBidAsk(Order.BID,false,amount,price)
     case SellBroadcastMsg(amount,price) => updateBidAsk(Order.ASK,false,amount,price)
-    case msg:OrderRegisteredMsg         => orderRegistered(msg)
     case msg                            => defaultMsgHandler(msg)
   }
 

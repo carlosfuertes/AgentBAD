@@ -3,7 +3,7 @@ package mmaker.actors
 import akka.actor.{ActorRef, Actor}
 import mmaker.orderbooks._
 import mmaker.utils.currency.Currency
-import collection.mutable.MutableList
+import collection.mutable.{MutableList, Map}
 import mmaker.messages._
 import akka.util.Timeout
 import akka.pattern.ask
@@ -26,6 +26,8 @@ class ExchangeActor extends Actor with BookOwner {
   val orderBook:OrderBook = new OrderBook(this)
   // The list of mmaker.actors registered in this market
   val marketActors:MutableList[ActorRef] = MutableList[ActorRef]()
+  // Map of senders and order ids used to send notifications back to order issuer
+  val orderToSender:Map[String,ActorRef] = Map[String,ActorRef]()
 
 
   protected def receive = {
@@ -35,7 +37,7 @@ class ExchangeActor extends Actor with BookOwner {
     case order:OrderMsg           => registerNewOrder(sender, order)
 
     // debug
-    case IntrospectMsg(information) => introspect(information)
+    case IntrospectMsg(information,args) => introspect(information,args)
   }
 
   // BookOwner interface
@@ -43,13 +45,19 @@ class ExchangeActor extends Actor with BookOwner {
   /**
    * An order has been partially filled
    */
-  def orderProgress(order: Order, amount: Long, price: Currency) {}
+  def orderProgress(order: Order, amount: Long, price: Currency) {
+    val sender:ActorRef = orderToSender(order.id)
+    sender ! OrderProgressMsg(order.id, amount, price)
+  }
 
   /**
    * An order has been completely fulfilled
-   * @param order
+   * @param order the order that has been completed
    */
-  def orderCompleted(order: Order) {}
+  def orderCompleted(order: Order) {
+    val sender:ActorRef = orderToSender(order.id)
+    sender ! OrderCompletedMsg(order.id)
+  }
 
   /**
    * Some trade has been performed
@@ -86,6 +94,7 @@ class ExchangeActor extends Actor with BookOwner {
   }
 
   private def registerNewOrder(marketActor: ActorRef, incomingOrder:OrderMsg) {
+    // Transform the message into a BookOrder
     val order = incomingOrder match {
       case AskMsg(amount:Long, price:Currency) => Ask(amount, price)
       case BidMsg(amount:Long, price:Currency) => Bid(amount, price)
@@ -93,12 +102,15 @@ class ExchangeActor extends Actor with BookOwner {
       case SellMsg(amount:Long)                => Sell(amount)
     }
 
+    // Register the order
+    orderToSender.put(order.id, sender)
     marketActor ! OrderRegisteredMsg(order.id, incomingOrder.clientId)
 
+    // Process the order
     orderBook.processNewOrder(order)
   }
 
-  private def introspect(information: String) = {
+  private def introspect(information: String, args: List[String]) {
     information match {
       case ExchangeActor.NUMBER_REGISTERED_MARKET_ACTORS => sender ! marketActors.length
     }
@@ -115,7 +127,7 @@ object ExchangeActor {
     val future = exchange ? IntrospectMsg(NUMBER_REGISTERED_MARKET_ACTORS)
     val result = Await.result(future, MarketActor.REGISTRATION_TIMEOUT)
     result match {
-      case r:Int => return r
+      case r:Int => r
       case _     => throw new Exception("Error introspecting "+NUMBER_REGISTERED_MARKET_ACTORS)
     }
   }
