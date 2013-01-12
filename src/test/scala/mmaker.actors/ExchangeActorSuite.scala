@@ -7,6 +7,9 @@ import mmaker.Configuration
 import akka.util.Timeout
 import akka.dispatch.Await
 import akka.pattern.ask
+import mmaker.messages.OrderMsg
+import mmaker.utils.currency.Currency
+import mmaker.orderbooks.Order
 
 /**
  * User: Antonio Garrote
@@ -60,5 +63,32 @@ class ExchangeActorSuite extends FunSuite {
 
     val numMarketActorsAfter = ExchangeActor.numberRegisteredActors(exchange)
     assert(numMarketActorsAfter === 1)
+  }
+}
+
+class MarketMechanismSuite extends FunSuite {
+  test("It should be possible to send order messages to the exchange actor receiving the right registration message back") {
+    implicit val system = ActorSystem("MarketMechanismSuite1")
+
+    val exchange = TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
+
+    //println("*** PRE EXCHANGE REF: "+exchange)
+    Thread.sleep(2000)
+
+    val mmaker = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
+    Thread.sleep(2000)
+
+    MarketActor.trigger_ask(mmaker)
+
+    Thread.sleep(2000)
+
+    val result = MarketActor.get_registered_orders(mmaker)
+
+    assert(result.keys.size === 1)
+    val key = result.keysIterator.next()
+    val orderTracking = result(key)
+
+    assert(key === orderTracking.clientId)
+    assert(orderTracking.side === Order.ASK)
   }
 }

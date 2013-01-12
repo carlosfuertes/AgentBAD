@@ -1,13 +1,19 @@
 package mmaker.actors
 
 import akka.actor.{ActorRef, Actor}
-import mmaker.orderbooks.{Order, BookOwner, OrderBook}
+import mmaker.orderbooks._
 import mmaker.utils.currency.Currency
 import collection.mutable.MutableList
 import mmaker.messages._
 import akka.util.Timeout
 import akka.pattern.ask
 import akka.dispatch.Await
+import mmaker.messages.AskMsg
+import mmaker.messages.MarketActorRegisteredMsg
+import mmaker.orderbooks.Ask
+import mmaker.messages.IntrospectMsg
+import mmaker.messages.BidMsg
+import mmaker.messages.RegisterMarketActorMsg
 
 /**
  * User: Antonio Garrote
@@ -25,6 +31,9 @@ class ExchangeActor extends Actor with BookOwner {
   protected def receive = {
     // registration
     case RegisterMarketActorMsg() => registerMarketActor(sender)
+    // Incoming orders
+    case order:OrderMsg           => registerNewOrder(sender, order)
+
     // debug
     case IntrospectMsg(information) => introspect(information)
   }
@@ -74,6 +83,19 @@ class ExchangeActor extends Actor with BookOwner {
   private def registerMarketActor(marketActor: ActorRef) = {
     marketActors += marketActor
     marketActor ! MarketActorRegisteredMsg()
+  }
+
+  private def registerNewOrder(marketActor: ActorRef, incomingOrder:OrderMsg) {
+    val order = incomingOrder match {
+      case AskMsg(amount:Long, price:Currency) => Ask(amount, price)
+      case BidMsg(amount:Long, price:Currency) => Bid(amount, price)
+      case BuyMsg(amount:Long)                 => Buy(amount)
+      case SellMsg(amount:Long)                => Sell(amount)
+    }
+
+    marketActor ! OrderRegisteredMsg(order.id, incomingOrder.clientId)
+
+    orderBook.processNewOrder(order)
   }
 
   private def introspect(information: String) = {

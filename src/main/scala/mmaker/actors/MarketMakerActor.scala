@@ -1,7 +1,7 @@
 package mmaker.actors
 
 import mmaker.utils.currency.Currency
-import mmaker.messages.{SellBroadcastMsg, BuyBroadcastMsg}
+import mmaker.messages.{OrderRegisteredMsg, SellBroadcastMsg, BuyBroadcastMsg}
 import mmaker.orderbooks.Order
 
 /**
@@ -9,11 +9,11 @@ import mmaker.orderbooks.Order
  * Date: 31/12/2012
  * Time: 23:12
  */
-class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, balance:Currency, tradeAmount:Long)
+class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
   extends MarketActor {
 
-  var this.balance:Currency = balance
-  var this.tradeAmount:Long = tradeAmount
+  var balance:Currency = Currency(0.0)
+  //var this.tradeAmount:Long = tradeAmount
   var bidder:ZIP8Agent = new ZIP8Agent(ZIP8Agent.BID, bidLimitPrice)
   var asker:ZIP8Agent = new ZIP8Agent(ZIP8Agent.OFFER,askLimitPrice)
 
@@ -23,8 +23,10 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, balance:C
   protected def receive = {
     case BuyBroadcastMsg(amount,price)  => updateBidAsk(Order.BID,false,amount,price)
     case SellBroadcastMsg(amount,price) => updateBidAsk(Order.ASK,false,amount,price)
-    case _                              => // ignoring message
+    case msg:OrderRegisteredMsg         => orderRegistered(msg)
+    case msg                            => defaultMsgHandler(msg)
   }
+
 
   def updateBidAsk(side: Int, success: Boolean, amount: Long, price: Currency) {
     // For BUYERS
@@ -35,15 +37,15 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency, balance:C
 
   def updateBid(side: Int, success: Boolean, amount: Long, price: Currency) {
     side match {
-      case Order.BID => bidder.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.NO_DEAL, price)
-      case Order.ASK => bidder.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.NO_DEAL, price)
+      case Order.BID => bidder.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.succesToDeal(success), price)
+      case Order.ASK => bidder.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.succesToDeal(success), price)
     }
   }
 
   def updateAsk(side: Int, success: Boolean, amount: Long, price: Currency) {
     side match {
-      case Order.BID => asker.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.NO_DEAL, price)
-      case Order.ASK => asker.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.NO_DEAL, price)
+      case Order.BID => asker.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.succesToDeal(success), price)
+      case Order.ASK => asker.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.succesToDeal(success), price)
     }
   }
 
@@ -208,4 +210,9 @@ object ZIP8Agent {
   val MARK:Double = 0.5
 
   def randval(limit:Double):Double = scala.util.Random.nextInt((limit*100D).toInt).toDouble / 100.0D
+
+  def succesToDeal(success:Boolean):Int = success match {
+    case true  => ZIP8Agent.DEAL
+    case false => ZIP8Agent.NO_DEAL
+  }
 }

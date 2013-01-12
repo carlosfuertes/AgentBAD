@@ -16,6 +16,7 @@ case class MarketActorRegisteredMsg()
 
 // Base class for all order messages
 abstract class OrderMsg {
+  val clientId:String = java.util.UUID.randomUUID().toString
   val amount:Long
 }
 // Different order messages, limit and market orders
@@ -28,7 +29,7 @@ case class SellMsg(amount:Long) extends OrderMsg
 abstract class ExchangeOrderNotificationMsg {
   val id:String // ID of the order this response is about
 }
-case class OrderRegisteredMsg(id:String) extends  ExchangeOrderNotificationMsg
+case class OrderRegisteredMsg(id:String,clientId:String) extends  ExchangeOrderNotificationMsg
 case class OrderProgressMsg(id:String, amount:Long, price:Currency) extends  ExchangeOrderNotificationMsg
 case class OrderCompletedMsg(id:String) extends  ExchangeOrderNotificationMsg
 case class OrderRejectedMsg(id:String) extends  ExchangeOrderNotificationMsg
