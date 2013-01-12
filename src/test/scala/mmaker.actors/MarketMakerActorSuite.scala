@@ -59,18 +59,91 @@ class MarketMakerActorSuite extends FunSuite {
 
   }
 
-  /*
-  test("The profit margin should change correctly according to the output of the delta function") {
-    val momentum:Currency = Currency(scala.math.random) + Currency(0.2)
-    var result = updateProfitMargin(Currency(100), Currency(90), Currency(1000), 0.1F, momentum, Currency(0.0))
-    println("UPDATED PROFIT MARGIN: "+result)
+  test("Shout of new information should update correctly the price of a seller") {
+    val seller = new ZIP8Agent(ZIP8Agent.SELL, Currency(100))
+
+    // successful bid > price than my current price -> inc. profit -> inc ask price
+    var lastPrice = seller.price
+    seller.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.DEAL, Currency(seller.price.toDouble + 20))
+    assert(seller.price > lastPrice)
+
+    // successful ask > price than my current price -> inc. profit -> inc ask price
+    lastPrice = seller.price
+    seller.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.DEAL, Currency(seller.price.toDouble + 20))
+    assert(seller.price > lastPrice)
+
+    // successful bid < price than my current price -> not want to miss buyers price level -> dec profit -> dec price
+    lastPrice = seller.price
+    seller.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.DEAL, Currency(seller.price.toDouble - 20))
+    assert(seller.price < lastPrice)
+
+    // successful ask < price than my current price -> don't care -> no change profit -> no change price
+    lastPrice = seller.price
+    seller.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.DEAL, Currency(seller.price.toDouble - 20))
+    assert(seller.price == lastPrice)
+
+    // unsuccessful ask > price -> don't care, we have a better offer
+    lastPrice = seller.price
+    seller.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.NO_DEAL, Currency(seller.price.toDouble + 20))
+    assert(seller.price == lastPrice)
+
+    // unsuccessful ask < price -> we need to improve that offer to secure deals!!
+    lastPrice = seller.price
+    seller.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.NO_DEAL, Currency(seller.price.toDouble - 20))
+    assert(seller.price < lastPrice)
+
+    // unsuccessful bid -> we don't care
+    lastPrice = seller.price
+    seller.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.NO_DEAL, Currency(seller.price.toDouble + 20))
+    assert(seller.price == lastPrice)
+    lastPrice = seller.price
+    seller.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.NO_DEAL, Currency(seller.price.toDouble - 20))
+    assert(seller.price == lastPrice)
+
   }
 
-  test("Prices should be updated correctly") {
-    val momentum:Currency = Currency(scala.math.random) + Currency(0.2)
-    var result = updatePrice(Order.BUY, 1L, Currency(100), Currency(80), Currency(1000), 0.1F, momentum, Currency(0.0));
+  test("Shout of new information should update correctly the price of a buyer") {
+    val buyer = new ZIP8Agent(ZIP8Agent.BUY, Currency(100))
 
-    println("NEW PRICE: "+result)
+    // successful bid < price than my current price -> inc. profit -> dec bid price
+    var lastPrice = buyer.price
+    buyer.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.DEAL, Currency(buyer.price.toDouble - 20))
+    assert(buyer.price < lastPrice)
+
+    // successful ask < price than my current price -> inc. profit -> dec bid price
+    lastPrice = buyer.price
+    buyer.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.DEAL, Currency(buyer.price.toDouble - 20))
+    assert(buyer.price < lastPrice)
+
+
+    // successful ask > price than my current price -> not want to miss sellers price level -> dec profit -> inc price
+    lastPrice = buyer.price
+    buyer.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.DEAL, Currency(buyer.price.toDouble + 20))
+    assert(buyer.price > lastPrice)
+
+    // successful bid > price than my current price -> don't care -> no change profit -> no change price
+    lastPrice = buyer.price
+    buyer.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.DEAL, Currency(buyer.price.toDouble + 20))
+    assert(buyer.price == lastPrice)
+
+    // unsuccessful bid < price -> don't care, we have a better offer
+    lastPrice = buyer.price
+    buyer.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.NO_DEAL, Currency(buyer.price.toDouble - 20))
+    assert(buyer.price == lastPrice)
+
+    // unsuccessful bid > price -> we need to improve that offer to secure deals!!
+    lastPrice = buyer.price
+    buyer.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.NO_DEAL, Currency(buyer.price.toDouble + 20))
+    assert(buyer.price > lastPrice)
+
+    // unsuccessful ask -> we don't care
+    lastPrice = buyer.price
+    buyer.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.NO_DEAL, Currency(buyer.price.toDouble + 20))
+    assert(buyer.price == lastPrice)
+    lastPrice = buyer.price
+    buyer.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.NO_DEAL, Currency(buyer.price.toDouble - 20))
+    assert(buyer.price == lastPrice)
+
   }
-  */
+
 }

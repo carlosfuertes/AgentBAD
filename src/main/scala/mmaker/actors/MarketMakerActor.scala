@@ -79,7 +79,7 @@ class ZIP8Agent(side:Int, limit:Currency) {
   // var actualGain:Currency = Currency(0.0)// actual gain
   // var theoreticalGain:Currency // theoretical gain
   // var sum:Currency = Currency(0.0) // in determining average reward
-  //var avg:Currency // average reward
+  // var avg:Currency // average reward
 
 
   // initialize the price
@@ -116,6 +116,7 @@ class ZIP8Agent(side:Int, limit:Currency) {
     val newProfit:Currency = ((this.price + Currency(change)) / limit.amount) - Currency(1.0)
 
     this.profit = newProfit
+    // @todo ?? this is part of the C++ implementation... Cannot see the purpose. Updating profit by default.
     /*
     if(job == ZIP8Agent.SELL) {
 
@@ -150,6 +151,7 @@ class ZIP8Agent(side:Int, limit:Currency) {
             // decrement profit
             // wouldnt have got this deal so mark the price down
             targetPrice = ((1.0-ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) - ZIP8Agent.randval(0.05)
+            profitAlter(Currency(targetPrice))
           }
         }
       } else { // NO_DEAL
@@ -165,10 +167,12 @@ class ZIP8Agent(side:Int, limit:Currency) {
     } else { // BUYER
       if (status == ZIP8Agent.DEAL) {
         if(this.price >= price) {
+          // could get lower price, try raising margin
           targetPrice = ((1.0-ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) - ZIP8Agent.randval(0.05)
           profitAlter(Currency(targetPrice))
         } else {
-          if(status == ZIP8Agent.OFFER && !willingTrade(price) && active) {
+          if(dealType == ZIP8Agent.OFFER && !willingTrade(price) && active) {
+            // wouldnt have got this deal so mark the price up
             targetPrice = ((1.0+ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) + ZIP8Agent.randval(0.05)
             profitAlter(Currency(targetPrice))
           }
@@ -186,6 +190,9 @@ class ZIP8Agent(side:Int, limit:Currency) {
 
 }
 
+/**
+ * Constants and utilities for the ZIP8 class
+ */
 object ZIP8Agent {
   val BUY:Int = 1
   val SELL:Int = 0
