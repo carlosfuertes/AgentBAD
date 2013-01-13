@@ -109,7 +109,7 @@ object OrderTracking {
 /**
  * Base class for all Market Actors, holding common logic.
  */
-abstract class MarketActor extends Actor {
+abstract class MarketActor extends Actor with akka.actor.ActorLogging {
 
   var balance:Bank = new Bank
   // Is this market actor registered in an exchange
@@ -125,17 +125,28 @@ abstract class MarketActor extends Actor {
    * handle default messages common to all actors
    */
   def defaultMsgHandler(msg:Any) = msg match {
-    case msg:MarketActorRegisteredMsg => registered = true
+    case msg:MarketActorRegisteredMsg => {
+      log.debug("** Actor "+self+" registered")
+      registered = true
+    }
     case msg:OrderRegisteredMsg    => orderRegistered(msg)
     case msg:OrderProgressMsg      => orderTrack(msg)
     case msg:OrderCompletedMsg     => orderTrack(msg)
     case msg:OrderCancelledMsg     => orderTrack(msg)
 
-    case msg:ActivateMsg           => active = true
+    case msg:ActivateMsg           => {
+      active = true
+      onActivate
+    }
     case IntrospectMsg(msg:String,args) => introspect(msg,args)
 
-    case _                         => println("Unknown msg "+msg)
+    case _                         => log.debug("?? Unknown msg "+msg)
   }
+
+  /**
+   * Handler invoked when the actor is activated. It can be overriden in children classes.
+   */
+  def onActivate = {}
 
   /**
    * Registers the market actor into the default exchange
@@ -151,6 +162,8 @@ abstract class MarketActor extends Actor {
    */
   def shoutPrice(side:Int, amount:Long, price:Currency):OrderMsg = {
     var order:OrderMsg = null
+
+    log.debug("** Shouting price in order -> "+(if(side == Order.BID) { "BID/BUY" } else { "ASK/SELL" })+") "+amount+" at "+price)
 
     order = side match {
       case Order.BID => price match {
@@ -172,15 +185,21 @@ abstract class MarketActor extends Actor {
    * Registers a new order that has been created in order to track it.
    * @param order the order to track.
    */
-  def orderCreated(order:OrderMsg) { orderTracker.put(order.clientId, new OrderTracking(order)) }
+  def orderCreated(order:OrderMsg) {
+    log.debug("** Creating order "+order.clientId)
+
+    orderTracker.put(order.clientId, new OrderTracking(order))
+  }
 
   def orderRegistered(order:OrderRegisteredMsg) {
+    log.debug("** Order registered "+order.clientId+" -> "+order.id)
+
     orderTracker.get(order.clientId) match {
       case Some(tracker:OrderTracking) => {
         tracker.track(order)
         idToClientId.put(order.id,order.clientId)
       }
-      case None  => throw new Exception("Error rgistering unknown created order "+order.clientId)
+      case None  => throw new Exception("Error registering unknown created order "+order.clientId)
     }
   }
 
@@ -192,6 +211,7 @@ abstract class MarketActor extends Actor {
 
     order match {
       case OrderProgressMsg(id, amount, price) => {
+        log.debug("** Tracking progress in order "+order.id+" -> "+(if(tracker.side == Order.BID) { "BID" } else { "ASK" })+") "+amount+" at "+price)
         balance.track(tracker.side, price, amount)
       }
       case _  => // ignore
@@ -248,7 +268,7 @@ object MarketActor extends SyncRequester {
   val TRIGGER_SELL_MESSAGE = "trigger_sell_message"
   val GET_REGISTERED_ORDERS = "get_registered_orders"
   val GET_BALANCE = "get_bank_balance"
-  val GET_ACTIVE = "get_bank_balance"
+  val GET_ACTIVE = "get_active"
   val TRIGGER_CANCEL_OPEN_ORDER = "trigger_cancel_open_order"
 
   def trigger_ask(marketActor:ActorRef, amount:Long=1, price:Long=scala.util.Random.nextInt(1000)) {
@@ -268,25 +288,9 @@ object MarketActor extends SyncRequester {
     marketActor ! IntrospectMsg(TRIGGER_CANCEL_OPEN_ORDER)
   }
 
-  def get_registered_orders(marketActor:ActorRef):Map[String,OrderTracking] = {
-    implicit val timeout = Timeout(MarketActor.CREATION_TIMEOUT)
-    val future = marketActor ? IntrospectMsg(GET_REGISTERED_ORDERS)
-    val result = Await.result(future, MarketActor.REGISTRATION_TIMEOUT)
-    result match {
-      case r:Map[String,OrderTracking] => return r
-      case _     => throw new Exception("Error introspecting "+GET_REGISTERED_ORDERS)
-    }
-  }
+  def get_registered_orders(marketActor:ActorRef):Map[String,OrderTracking] = sync[Map[String,OrderTracking]](marketActor,IntrospectMsg(GET_REGISTERED_ORDERS))
 
-  def get_balance(marketActor:ActorRef):Bank = {
-    implicit val timeout = Timeout(MarketActor.CREATION_TIMEOUT)
-    val future = marketActor ? IntrospectMsg(GET_BALANCE)
-    val result = Await.result(future, MarketActor.REGISTRATION_TIMEOUT)
-    result match {
-      case r:Bank => r
-      case _      => throw new Exception("Error introspecting "+GET_BALANCE)
-    }
-  }
+  def get_balance(marketActor:ActorRef):Bank = sync[Bank](marketActor,IntrospectMsg(GET_ACTIVE))
 
   def get_active(marketActor:ActorRef) = sync[Boolean](marketActor,IntrospectMsg(GET_ACTIVE))
 

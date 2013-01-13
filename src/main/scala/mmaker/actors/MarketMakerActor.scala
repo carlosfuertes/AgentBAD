@@ -3,10 +3,10 @@ package mmaker.actors
 import mmaker.utils.currency.Currency
 import mmaker.messages._
 import mmaker.orderbooks.Order
-import mmaker.messages.OrderRegisteredMsg
 import mmaker.messages.OrderProgressMsg
 import mmaker.messages.SellBroadcastMsg
 import mmaker.messages.BuyBroadcastMsg
+import akka.event.Logging
 
 /**
  * User: Antonio Garrote
@@ -22,6 +22,17 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
 
   // When this actor is created, we register into the default exchange
   override def preStart() { performRegistration() }
+
+  // When the actor is activated it must send their first quotes to the exchange to start trading
+  override def onActivate() {
+    while(exchange == null) {
+      log.warning("?? Sleeping. waiting for exchange...")
+      context.wait(1500)
+    }
+
+    // send initial prices to the exchange
+    shout()
+  }
 
   protected def receive = {
     case BuyBroadcastMsg(amount,price)  => updateBidAsk(Order.BID,false,amount,price)
@@ -40,10 +51,25 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
 
 
   def updateBidAsk(side: Int, success: Boolean, amount: Long, price: Currency) {
+
+    log.debug("** Updating bid/ask -> "+(if(side == Order.BID) { "BID" } else { "ASK" })+") "+amount+" at "+price+" :: success? "+success)
+
     // For BUYERS
     updateBid(side, success, amount, price)
     // For SELLERS
     updateAsk(side, success, amount, price)
+
+    // send new prices to the exchange
+    shout()
+  }
+
+  def shout() {
+    if (active) {
+      context.wait(ZIP8Agent.randval(5000).toLong)
+      shoutPrice(Order.BID, 1, bidder.price)
+      shoutPrice(Order.ASK, 1, asker.price)
+
+    }
   }
 
   def updateBid(side: Int, success: Boolean, amount: Long, price: Currency) {

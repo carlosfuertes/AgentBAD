@@ -20,7 +20,7 @@ import mmaker.messages.RegisterMarketActorMsg
  * Date: 31/12/2012
  * Time: 23:34
  */
-class ExchangeActor extends Actor with BookOwner {
+class ExchangeActor extends Actor with BookOwner with akka.actor.ActorLogging {
 
   // The order book for this exchange
   val orderBook:OrderBook = new OrderBook(this)
@@ -113,6 +113,8 @@ class ExchangeActor extends Actor with BookOwner {
    * @param marketActor
    */
   private def registerMarketActor(marketActor: ActorRef) = {
+    log.debug("** Registering actor "+marketActor)
+
     val actor = context.actorFor(marketActor.path)
     marketActors += actor
     marketActor ! MarketActorRegisteredMsg()
@@ -126,6 +128,8 @@ class ExchangeActor extends Actor with BookOwner {
       case BuyMsg(amount:Long)                 => Buy(amount)
       case SellMsg(amount:Long)                => Sell(amount)
     }
+
+    log.debug("** Registering new order "+order)
 
     // Register the order
     orderToSender.put(order.id, sender)
