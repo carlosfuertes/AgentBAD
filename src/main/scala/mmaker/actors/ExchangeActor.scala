@@ -35,6 +35,7 @@ class ExchangeActor extends Actor with BookOwner {
     case RegisterMarketActorMsg() => registerMarketActor(sender)
     // Incoming orders
     case order:OrderMsg           => registerNewOrder(sender, order)
+    case CancelOrderMsg(id)       => orderBook.cancel(id)
 
     // debug
     case IntrospectMsg(information,args) => introspect(information,args)
@@ -95,6 +96,15 @@ class ExchangeActor extends Actor with BookOwner {
    * @param order
    */
   def orderRejected(order: Order) {}
+
+  /**
+   * An order has been cancelled
+   * @param order
+   */
+  def orderCancelled(order: Order) {
+    val sender:ActorRef = orderToSender(order.id)
+    sender ! OrderCancelledMsg(order.id)
+  }
 
   // private methods
 

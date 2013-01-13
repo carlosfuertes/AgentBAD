@@ -156,4 +156,25 @@ class OrderBookSuite extends FunSuite {
     assert(bookOwner.messages.length === 1)
     assert(bookOwner.messages(0) === (AggregatedBookOwner.ORDER_REJECTED, buy1))
   }
+
+  test("It should be possible to cancel an existent order") {
+    val bookOwner = new AggregatedBookOwner()
+    val book = new OrderBook(bookOwner)
+
+    val ask1 = Ask(1000, Currency(10))
+    assert(ask1.status === Order.UNFILLED)
+    book.processNewOrder(ask1)
+
+    assert(book.askOrders.size === 1)
+    bookOwner.emptyMessages()
+
+    book.cancel(ask1.id)
+
+    assert(book.askOrders.size === 0)
+
+    //bookOwner.printMessages()
+
+    assert(bookOwner.messages.size === 1)
+    assert(bookOwner.messages(0) === (AggregatedBookOwner.ORDER_CANCELLED, ask1))
+  }
 }

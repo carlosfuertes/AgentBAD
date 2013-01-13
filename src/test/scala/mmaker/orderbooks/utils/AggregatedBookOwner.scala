@@ -35,6 +35,11 @@ class AggregatedBookOwner extends BookOwner {
     messages += Tuple2(AggregatedBookOwner.ORDER_REJECTED, order)
   }
 
+  def orderCancelled(order: Order) {
+    messages += Tuple2(AggregatedBookOwner.ORDER_CANCELLED, order)
+  }
+
+
   def emptyMessages() = messages.clear()
 
   def printMessages() = {
@@ -59,6 +64,7 @@ class AggregatedBookOwner extends BookOwner {
           }
         }
         case (AggregatedBookOwner.ORDER_REJECTED, order:Order) => println("* "+i+") ORDER REJECTED: "+order+"@"+order.id)
+        case (AggregatedBookOwner.ORDER_CANCELLED, order:Order) => println("* "+i+") ORDER CANCELLED: "+order+"@"+order.id)
       }
       i+=1
     }
@@ -72,4 +78,5 @@ object AggregatedBookOwner {
   val TRADE_NOTIFICATION:Int = 2
   val QUOTE_NOTIFICATION:Int = 3
   val ORDER_REJECTED:Int = 4
+  val ORDER_CANCELLED:Int = 5
 }

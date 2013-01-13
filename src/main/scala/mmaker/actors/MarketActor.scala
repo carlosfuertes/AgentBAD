@@ -81,6 +81,10 @@ class OrderTracking(order:OrderMsg) {
       this.status = OrderTracking.COMPLETED
     }
 
+    case OrderCancelledMsg(_) => {
+      this.status = OrderTracking.CANCELLED
+    }
+
     case msg => println("*** Handler for msg "+msg+" not implemented yet")
   }
 
@@ -88,10 +92,7 @@ class OrderTracking(order:OrderMsg) {
 
   def isCompleted = status == OrderTracking.COMPLETED
 
-  def completeOrder() {
-    status = OrderTracking.COMPLETED
-  }
-
+  def isActive = status != OrderTracking.CANCELLED
 }
 
 object OrderTracking {
@@ -124,6 +125,7 @@ abstract class MarketActor extends Actor {
     case msg:OrderRegisteredMsg    => orderRegistered(msg)
     case msg:OrderProgressMsg      => orderTrack(msg)
     case msg:OrderCompletedMsg     => orderTrack(msg)
+    case msg:OrderCancelledMsg     => orderTrack(msg)
 
     case IntrospectMsg(msg:String,args) => introspect(msg,args)
 
@@ -187,12 +189,12 @@ abstract class MarketActor extends Actor {
       case OrderProgressMsg(id, amount, price) => {
         balance.track(tracker.side, price, amount)
       }
-      case OrderCompletedMsg(id) => {
-        tracker.completeOrder()
-      }
+      case _  => // ignore
     }
 
   }
+
+  def orderIdToTracker(orderId:String):OrderTracking = orderTracker(idToClientId(orderId))
 
   // DEBUG
 

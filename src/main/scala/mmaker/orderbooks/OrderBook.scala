@@ -179,6 +179,30 @@ class OrderBook(owner:BookOwner) {
   }
 
   /**
+   * Removes an order from the book
+   */
+  def cancel(id:String) = {
+    askOrders.find(_.id == id) match {
+      case Some(order) => {
+        askOrders = askOrders.filter(_.id != order.id)
+        owner.orderCancelled(order)
+      }
+
+      case None => {
+        bidOrders.find(_.id == id) match {
+          case Some(order) => {
+            owner.orderCancelled(order)
+            bidOrders = bidOrders.filter(_.id != order.id)
+          }
+          case None => // ignore
+        }
+      }
+    }
+    //askOrders = askOrders.filter(_.id != id)
+    //bidOrders = bidOrders.filter(_.id != id)
+  }
+
+  /**
    * Adds a new order to the book in the right position.
    * @param order
    */
@@ -194,6 +218,7 @@ class OrderBook(owner:BookOwner) {
       bidOrders = bidOrders.sortWith(_.price > _.price)
     }
   }
+
 
   /**
    * Weighted average price for bid orders

@@ -26,6 +26,15 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
   protected def receive = {
     case BuyBroadcastMsg(amount,price)  => updateBidAsk(Order.BID,false,amount,price)
     case SellBroadcastMsg(amount,price) => updateBidAsk(Order.ASK,false,amount,price)
+    case AskBroadcastMsg(amount,price)  => updateBidAsk(Order.ASK,false,amount,price)
+    case BidBroadcastMsg(amount,price)  => updateBidAsk(Order.BID,false,amount,price)
+    case msg:OrderProgressMsg           => {
+      val side = orderIdToTracker(msg.id).side
+      // update bid/ask with a successful operation
+      updateBidAsk(side,true,msg.amount,msg.price)
+      // default processing to update the tracking and the balance
+      defaultMsgHandler(msg)
+    }
     case msg                            => defaultMsgHandler(msg)
   }
 

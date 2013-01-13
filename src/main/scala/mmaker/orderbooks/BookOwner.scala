@@ -48,4 +48,10 @@ trait BookOwner {
    * @param order
    */
   def orderRejected(order:Order)
+
+  /**
+   * An order has been cancelled
+   * @param order
+   */
+  def orderCancelled(order:Order)
 }

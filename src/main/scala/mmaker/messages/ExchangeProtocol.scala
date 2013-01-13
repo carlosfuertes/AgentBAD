@@ -25,6 +25,9 @@ case class BidMsg(amount:Long, price:Currency) extends OrderMsg
 case class BuyMsg(amount:Long) extends OrderMsg
 case class SellMsg(amount:Long) extends OrderMsg
 
+// Cancels an order
+case class CancelOrderMsg(id:String)
+
 // Response from the exchange when the order has been accepted and before being processed
 abstract class ExchangeOrderNotificationMsg {
   val id:String // ID of the order this response is about
@@ -33,6 +36,7 @@ case class OrderRegisteredMsg(id:String,clientId:String) extends  ExchangeOrderN
 case class OrderProgressMsg(id:String, amount:Long, price:Currency) extends  ExchangeOrderNotificationMsg
 case class OrderCompletedMsg(id:String) extends  ExchangeOrderNotificationMsg
 case class OrderRejectedMsg(id:String) extends  ExchangeOrderNotificationMsg
+case class OrderCancelledMsg(id:String) extends  ExchangeOrderNotificationMsg
 
 // Notifications broadcasted by the exchange
 case class MarketBroadcastMsg(side:Int)
