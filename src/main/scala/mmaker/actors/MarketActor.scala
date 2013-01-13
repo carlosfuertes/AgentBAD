@@ -73,11 +73,11 @@ class OrderTracking(order:OrderMsg) {
       this.status = OrderTracking.REGISTERED
     }
 
-    case OrderProgressMsg(id,_,_) => {
+    case OrderProgressMsg(_,_,_) => {
       this.status = OrderTracking.IN_PROGRESS
     }
 
-    case OrderCompletedMsg(id) => {
+    case OrderCompletedMsg(_) => {
       this.status = OrderTracking.COMPLETED
     }
 
@@ -120,6 +120,7 @@ abstract class MarketActor extends Actor {
    * handle default messages common to all actors
    */
   def defaultMsgHandler(msg:Any) = msg match {
+    case msg:MarketActorRegisteredMsg => registered = true
     case msg:OrderRegisteredMsg    => orderRegistered(msg)
     case msg:OrderProgressMsg      => orderTrack(msg)
     case msg:OrderCompletedMsg     => orderTrack(msg)
@@ -134,15 +135,7 @@ abstract class MarketActor extends Actor {
    */
   def performRegistration() = {
     exchange = context.actorFor(Configuration.DEFAULT_EXCHANGE_PATH)
-
-    implicit val timeout = Timeout(MarketActor.CREATION_TIMEOUT)
-    val future = exchange ? RegisterMarketActorMsg()
-    val result = Await.result(future, MarketActor.REGISTRATION_TIMEOUT)
-
-    result match {
-      case MarketActorRegisteredMsg() => registered = true
-      case _                          => throw new Exception("Error registering actor: "+result)
-    }
+    exchange ! RegisterMarketActorMsg()
   }
 
 

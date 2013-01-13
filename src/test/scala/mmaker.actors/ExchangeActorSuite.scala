@@ -1,15 +1,17 @@
 package mmaker.actors
 
 import org.scalatest.FunSuite
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActorRef
 import mmaker.Configuration
 import akka.util.Timeout
 import akka.dispatch.Await
 import akka.pattern.ask
-import mmaker.messages.OrderMsg
 import mmaker.utils.currency.Currency
 import mmaker.orderbooks.Order
+import collection.mutable
+import mmaker.messages.{BidBroadcastMsg, MarketBroadcastMsg}
+import mmaker.orderbooks.utils.SyncRequester
 
 /**
  * User: Antonio Garrote
@@ -29,11 +31,29 @@ class SimpleRegistrantActor extends MarketActor {
     case "isRegistered" => {
       sender ! registered
     }
-    case msg => {
-      println("** RECEIVED UNEXPECTED "+msg)
-      throw new Exception("Unexpected message "+msg)
+    case other   => defaultMsgHandler(other)
+  }
+}
 
-    }
+
+class QuoteAccumulatorActor extends MarketActor {
+
+  val quotes:mutable.MutableList[MarketBroadcastMsg] = mutable.MutableList[MarketBroadcastMsg]()
+
+  override def preStart() { performRegistration() }
+
+  protected def receive = {
+    case msg:MarketBroadcastMsg            => quotes += msg
+    case QuoteAccumulatorActor.GET_QUOTES  => sender ! quotes
+    case m                                 => // ignore
+  }
+}
+
+object QuoteAccumulatorActor extends SyncRequester {
+  val GET_QUOTES = "get_quotes"
+
+  def getQuotes(actor:ActorRef):mutable.MutableList[MarketBroadcastMsg] = {
+    sync[mutable.MutableList[MarketBroadcastMsg]](actor, GET_QUOTES)
   }
 }
 
@@ -165,5 +185,35 @@ class MarketMechanismSuite extends FunSuite {
     assert(sellerBalance.balance == Currency(1000))
 
     system.shutdown()
+  }
+
+  test("Market actors should receive updated quote notifications when actors send ask/bid requests to the exchange") {
+
+    implicit val system = ActorSystem("MarketMechanismSuite3")
+
+    TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
+    Thread.sleep(2000)
+
+    val accum1 = TestActorRef(new QuoteAccumulatorActor)
+    Thread.sleep(2000)
+    val accum2 = TestActorRef(new QuoteAccumulatorActor)
+    Thread.sleep(2000)
+    val buyer = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
+    Thread.sleep(2000)
+
+
+    MarketActor.trigger_bid(buyer,5,150)
+    Thread.sleep(2000)
+
+    val agg1 = QuoteAccumulatorActor.getQuotes(accum1)
+    Thread.sleep(2000)
+    val agg2 = QuoteAccumulatorActor.getQuotes(accum2)
+    Thread.sleep(2000)
+
+    assert(agg1.size === 1)
+    assert(agg2.size === 1)
+    assert(agg1(0) === agg2(0))
+
+    assert(agg1(0) === BidBroadcastMsg(5,Currency(150)))
   }
 }

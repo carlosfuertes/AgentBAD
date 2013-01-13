@@ -1,6 +1,6 @@
 package mmaker.actors
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{Terminated, ActorRef, Actor}
 import mmaker.orderbooks._
 import mmaker.utils.currency.Currency
 import collection.mutable.{MutableList, Map}
@@ -65,7 +65,14 @@ class ExchangeActor extends Actor with BookOwner {
    * @param amount
    * @param price
    */
-  def tradeNotification(side: Int, amount: Long, price: Currency) {}
+  def tradeNotification(side: Int, amount: Long, price: Currency) {
+    val msg = side match {
+      case Order.BUY => BuyBroadcastMsg(amount, price)
+      case Order.SELL => SellBroadcastMsg(amount, price)
+    }
+
+    broadcast(msg)
+  }
 
   /**
    * Updated value for the ask/bid levels
@@ -73,7 +80,14 @@ class ExchangeActor extends Actor with BookOwner {
    * @param amount
    * @param price
    */
-  def quoteNotification(side: Int, amount: Long, price: Currency) {}
+  def quoteNotification(side: Int, amount: Long, price: Currency) {
+    val msg = side match {
+      case Order.ASK => AskBroadcastMsg(amount, price)
+      case Order.BID => BidBroadcastMsg(amount, price)
+    }
+
+    broadcast(msg)
+  }
 
   /**
    * A market order has been rejected because there's no available buyers, sellers for the remaining
@@ -89,7 +103,8 @@ class ExchangeActor extends Actor with BookOwner {
    * @param marketActor
    */
   private def registerMarketActor(marketActor: ActorRef) = {
-    marketActors += marketActor
+    val actor = context.actorFor(marketActor.path)
+    marketActors += actor
     marketActor ! MarketActorRegisteredMsg()
   }
 
@@ -110,11 +125,14 @@ class ExchangeActor extends Actor with BookOwner {
     orderBook.processNewOrder(order)
   }
 
+  private def broadcast(msg:Any) { scala.util.Random.shuffle(marketActors).foreach(_ ! msg) }
+
   private def introspect(information: String, args: List[String]) {
     information match {
       case ExchangeActor.NUMBER_REGISTERED_MARKET_ACTORS => sender ! marketActors.length
     }
   }
+
 }
 
 
