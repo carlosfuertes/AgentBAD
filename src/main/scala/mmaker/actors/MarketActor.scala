@@ -216,6 +216,12 @@ abstract class MarketActor extends Actor {
         val order = shoutPrice(Order.ASK,args(0).toLong, null)
         orderCreated(order)
       }
+      case MarketActor.TRIGGER_CANCEL_OPEN_ORDER => {
+        orderTracker.values.find(_.isActive) match {
+          case Some(order) => exchange ! CancelOrderMsg(order.id)
+          case _           => println("** Cannot find an active order to cancel")
+        }
+      }
 
       case MarketActor.GET_REGISTERED_ORDERS => sender ! orderTracker
 
@@ -235,6 +241,7 @@ object MarketActor {
   val TRIGGER_SELL_MESSAGE = "trigger_sell_message"
   val GET_REGISTERED_ORDERS = "get_registered_orders"
   val GET_BALANCE = "get_bank_balance"
+  val TRIGGER_CANCEL_OPEN_ORDER = "trigger_cancel_open_order"
 
   def trigger_ask(marketActor:ActorRef, amount:Long=1, price:Long=scala.util.Random.nextInt(1000)) {
     marketActor ! IntrospectMsg(TRIGGER_ASK_MESSAGE, List[String](amount.toString,price.toString))
@@ -247,6 +254,10 @@ object MarketActor {
   }
   def trigger_buy(marketActor:ActorRef, amount:Long=1) {
     marketActor ! IntrospectMsg(TRIGGER_BUY_MESSAGE, List[String](amount.toString))
+  }
+
+  def trigger_cancel_open_order(marketActor:ActorRef) {
+    marketActor ! IntrospectMsg(TRIGGER_CANCEL_OPEN_ORDER)
   }
 
   def get_registered_orders(marketActor:ActorRef):Map[String,OrderTracking] = {

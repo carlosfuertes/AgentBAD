@@ -187,7 +187,7 @@ class MarketMechanismSuite extends FunSuite {
     system.shutdown()
   }
 
-  test("Market actors should receive updated quote notifications when actors send ask/bid requests to the exchange") {
+  test("It should be possible for market actors should receive updated quote notifications when actors send ask/bid requests to the exchange") {
 
     implicit val system = ActorSystem("MarketMechanismSuite3")
 
@@ -215,5 +215,36 @@ class MarketMechanismSuite extends FunSuite {
     assert(agg1(0) === agg2(0))
 
     assert(agg1(0) === BidBroadcastMsg(5,Currency(150)))
+
+    system.shutdown()
+  }
+
+  test("It should be possible for market actors to cancel previous orders") {
+    implicit val system = ActorSystem("MarketMechanismSuite3")
+
+    TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
+    Thread.sleep(2000)
+
+    val buyer = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
+    Thread.sleep(2000)
+
+    MarketActor.trigger_bid(buyer)
+    Thread.sleep(2000)
+
+    var orders = MarketActor.get_registered_orders(buyer)
+
+    assert(orders.values.size === 1)
+    assert(orders.values.iterator.next().isActive)
+
+
+    MarketActor.trigger_cancel_open_order(buyer)
+    Thread.sleep(4000)
+
+
+    orders = MarketActor.get_registered_orders(buyer)
+
+    assert(orders.values.size === 1)
+    assert(!orders.values.iterator.next().isActive)
+
   }
 }
