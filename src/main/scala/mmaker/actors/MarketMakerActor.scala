@@ -27,7 +27,7 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
   override def onActivate() {
     while(exchange == null) {
       log.warning("?? Sleeping. waiting for exchange...")
-      context.wait(1500)
+      Thread.sleep(1500)
     }
 
     // send initial prices to the exchange
@@ -65,9 +65,9 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
 
   def shout() {
     if (active) {
-      context.wait(ZIP8Agent.randval(5000).toLong)
-      shoutPrice(Order.BID, 1, bidder.price)
-      shoutPrice(Order.ASK, 1, asker.price)
+      Thread.sleep(1000)
+      orderCreated(shoutPrice(Order.BID, 1, bidder.price))
+      orderCreated(shoutPrice(Order.ASK, 1, asker.price))
 
     }
   }

@@ -92,22 +92,6 @@ class ExchangeActorSuite extends FunSuite {
 class MarketMechanismSuite extends FunSuite {
   test("It should be possible to send order messages to the exchange actor receiving the right registration message back") {
 
-    /*
-    val config = """
-    akka {
-      loglevel = DEBUG
-      actor {
-        debug {
-          receive = on
-          autoreceive = on
-          lifecycle = on
-        }
-      }
-    }
-    """
-
-    implicit val system = ActorSystem("MarketMechanismSuite1", ConfigFactory.parseString(config))
-    */
     implicit val system = ActorSystem("MarketMechanismSuite1")
 
     TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
