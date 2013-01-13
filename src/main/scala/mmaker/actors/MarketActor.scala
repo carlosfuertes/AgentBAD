@@ -13,6 +13,7 @@ import mmaker.messages.MarketActorRegisteredMsg
 import mmaker.messages.BidMsg
 import mmaker.messages.RegisterMarketActorMsg
 import scala.collection.mutable.Map
+import mmaker.utils.SyncRequester
 
 /**
  * User: Antonio Garrote
@@ -116,6 +117,9 @@ abstract class MarketActor extends Actor {
   var exchange:ActorRef = null
   val orderTracker:Map[String,OrderTracking] = Map[String,OrderTracking]()
   val idToClientId:Map[String,String] = Map[String,String]()
+  // Is this agent actively trading?
+  var active:Boolean = false
+
 
   /**
    * handle default messages common to all actors
@@ -127,6 +131,7 @@ abstract class MarketActor extends Actor {
     case msg:OrderCompletedMsg     => orderTrack(msg)
     case msg:OrderCancelledMsg     => orderTrack(msg)
 
+    case msg:ActivateMsg           => active = true
     case IntrospectMsg(msg:String,args) => introspect(msg,args)
 
     case _                         => println("Unknown msg "+msg)
@@ -223,6 +228,8 @@ abstract class MarketActor extends Actor {
         }
       }
 
+      case MarketActor.GET_ACTIVE => sender ! active
+
       case MarketActor.GET_REGISTERED_ORDERS => sender ! orderTracker
 
       case MarketActor.GET_BALANCE => sender ! balance
@@ -230,7 +237,7 @@ abstract class MarketActor extends Actor {
   }
 }
 
-object MarketActor {
+object MarketActor extends SyncRequester {
   val CREATION_TIMEOUT = 10000
   val REGISTRATION_TIMEOUT = akka.util.Duration("15 seconds")
 
@@ -241,6 +248,7 @@ object MarketActor {
   val TRIGGER_SELL_MESSAGE = "trigger_sell_message"
   val GET_REGISTERED_ORDERS = "get_registered_orders"
   val GET_BALANCE = "get_bank_balance"
+  val GET_ACTIVE = "get_bank_balance"
   val TRIGGER_CANCEL_OPEN_ORDER = "trigger_cancel_open_order"
 
   def trigger_ask(marketActor:ActorRef, amount:Long=1, price:Long=scala.util.Random.nextInt(1000)) {
@@ -279,4 +287,8 @@ object MarketActor {
       case _      => throw new Exception("Error introspecting "+GET_BALANCE)
     }
   }
+
+  def get_active(marketActor:ActorRef) = sync[Boolean](marketActor,IntrospectMsg(GET_ACTIVE))
+
+  def activate(marketActor:ActorRef) = marketActor ! ActivateMsg()
 }

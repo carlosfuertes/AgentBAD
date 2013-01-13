@@ -11,7 +11,7 @@ import mmaker.utils.currency.Currency
 import mmaker.orderbooks.Order
 import collection.mutable
 import mmaker.messages.{BidBroadcastMsg, MarketBroadcastMsg}
-import mmaker.orderbooks.utils.SyncRequester
+import mmaker.utils.SyncRequester
 
 /**
  * User: Antonio Garrote
@@ -246,5 +246,34 @@ class MarketMechanismSuite extends FunSuite {
     assert(orders.values.size === 1)
     assert(!orders.values.iterator.next().isActive)
 
+    system.shutdown()
+
   }
+
+
+  test("It should be possible to activate a market actor sending the activate message") {
+    implicit val system = ActorSystem("MarketMechanismSuite4")
+
+    TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
+    Thread.sleep(2000)
+
+    val buyer = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
+    Thread.sleep(2000)
+
+    var activated = MarketActor.get_active(buyer)
+    Thread.sleep(2000)
+
+    assert(!activated)
+
+    MarketActor.activate(buyer)
+    Thread.sleep(2000)
+
+    activated = MarketActor.get_active(buyer)
+    Thread.sleep(2000)
+
+    assert(activated)
+
+    system.shutdown()
+  }
+
 }

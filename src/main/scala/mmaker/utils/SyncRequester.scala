@@ -1,4 +1,4 @@
-package mmaker.orderbooks.utils
+package mmaker.utils
 
 import akka.actor.ActorRef
 import akka.util.Timeout

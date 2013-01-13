@@ -44,6 +44,3 @@ case class BuyBroadcastMsg(amount:Long, price:Currency) extends MarketBroadcastM
 case class SellBroadcastMsg(amount:Long, price:Currency) extends MarketBroadcastMsg(Order.SELL)
 case class BidBroadcastMsg(amount:Long, price:Currency) extends MarketBroadcastMsg(Order.BID)
 case class AskBroadcastMsg(amount:Long, price:Currency) extends MarketBroadcastMsg(Order.ASK)
-
-// Only for debugging
-case class IntrospectMsg(information:String,args:List[String] = List[String]())
