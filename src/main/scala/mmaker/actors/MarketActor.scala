@@ -1,10 +1,7 @@
 package mmaker.actors
 
 import akka.actor.{ActorRef, Actor}
-import akka.util.Timeout
-import akka.pattern.ask
 import mmaker.messages._
-import akka.dispatch.Await
 import mmaker.Configuration
 import mmaker.utils.currency.Currency
 import mmaker.orderbooks.Order

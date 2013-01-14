@@ -6,7 +6,6 @@ import mmaker.orderbooks.Order
 import mmaker.messages.OrderProgressMsg
 import mmaker.messages.SellBroadcastMsg
 import mmaker.messages.BuyBroadcastMsg
-import akka.event.Logging
 
 /**
  * User: Antonio Garrote
@@ -65,7 +64,7 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
 
   def shout() {
     if (active) {
-      Thread.sleep(1000)
+      Thread.sleep(mmaker.utils.Math.randval(1000).toLong)
       orderCreated(shoutPrice(Order.BID, 1, bidder.price))
       orderCreated(shoutPrice(Order.ASK, 1, asker.price))
 

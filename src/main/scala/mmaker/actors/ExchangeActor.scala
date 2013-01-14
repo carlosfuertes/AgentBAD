@@ -39,6 +39,7 @@ class ExchangeActor extends Actor with BookOwner with akka.actor.ActorLogging {
 
     // debug
     case IntrospectMsg(information,args) => introspect(information,args)
+    case msg                      => log.warning("?? Unknown msg "+msg)
   }
 
   // BookOwner interface
@@ -121,15 +122,15 @@ class ExchangeActor extends Actor with BookOwner with akka.actor.ActorLogging {
   }
 
   private def registerNewOrder(marketActor: ActorRef, incomingOrder:OrderMsg) {
+    log.debug("** Registering new order... ")
     // Transform the message into a BookOrder
     val order = incomingOrder match {
       case AskMsg(amount:Long, price:Currency) => Ask(amount, price)
       case BidMsg(amount:Long, price:Currency) => Bid(amount, price)
       case BuyMsg(amount:Long)                 => Buy(amount)
       case SellMsg(amount:Long)                => Sell(amount)
+      case _                                   => log.warning("?? Unknown type of incoming order "+incomingOrder); null
     }
-
-    log.debug("** Registering new order "+order)
 
     // Register the order
     orderToSender.put(order.id, sender)

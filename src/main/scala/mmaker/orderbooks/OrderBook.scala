@@ -3,6 +3,7 @@ package mmaker.orderbooks
 import mmaker.utils.currency.Currency
 import collection.mutable.MutableList
 import scala.util.control.Breaks._
+import akka.event.LoggingAdapter
 
 /**
  * User: Antonio Garrote
@@ -54,7 +55,6 @@ class OrderBook(owner:BookOwner) {
        */
 
       case Bid(buyAmount,buyPrice) => {
-
         updateBidVWAP(buyAmount,buyPrice)
         owner.quoteNotification(Order.BID, bidQ, bidVWAP)
 
@@ -73,15 +73,12 @@ class OrderBook(owner:BookOwner) {
             if (ask.status == Order.FILLED) owner.orderCompleted(ask)
 
             owner.tradeNotification(Order.BUY, quantity, ask.price)
-          } else break
+          } //else break
         }
-
         askOrders = askOrders.filter( _.status != Order.FILLED )
-
       }
 
       case Ask(sellAmount, sellPrice) => {
-
         updateAskVWAP(sellAmount,sellPrice)
         owner.quoteNotification(Order.ASK, askQ, askVWAP)
 
@@ -97,12 +94,12 @@ class OrderBook(owner:BookOwner) {
             owner.orderProgress(order, quantity, bid.price)
             owner.orderProgress(bid, quantity, bid.price)
 
-            if (bid.status == Order.FILLED) owner.orderCompleted(bid)
+            if (bid.status == Order.FILLED){ owner.orderCompleted(bid) }
 
             owner.tradeNotification(Order.SELL, quantity, bid.price)
-          } else break
-        }
+          }
 
+        }
         bidOrders = bidOrders.filter( _.status != Order.FILLED )
       }
 
@@ -131,7 +128,7 @@ class OrderBook(owner:BookOwner) {
             if (ask.status == Order.FILLED) owner.orderCompleted(ask)
 
             owner.tradeNotification(Order.BUY, quantity, buyPrice)
-          } else break
+          } // else break
         }
 
         askOrders = askOrders.filter( _.status != Order.FILLED )
@@ -159,12 +156,14 @@ class OrderBook(owner:BookOwner) {
             if (bid.status == Order.FILLED) owner.orderCompleted(bid)
 
             owner.tradeNotification(Order.SELL, quantity, sellPrice)
-          } else break
+          } // else break
         }
 
         bidOrders = bidOrders.filter( _.status != Order.FILLED )
 
       }
+
+      case other => // ignore
 
     }
 

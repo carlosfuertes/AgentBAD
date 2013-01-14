@@ -30,7 +30,13 @@ object TestMain extends App {
   val exchange = system.actorOf(Props[ExchangeActor], name="exchange")
 
   val mmaker1 = system.actorOf(Props(new MarketMakerActor(Currency(200),Currency(100))), name="mmaker1")
+  Thread.sleep(1000)
   MarketActor.activate(mmaker1)
 
-  //system.shutdown()
+  // Run it for 30 secs
+  Thread.sleep(30000)
+  println("\n\n\n*******************************************************")
+  println("Plegando!!!")
+  println("*******************************************************\n\n\n")
+  system.shutdown()
 }
