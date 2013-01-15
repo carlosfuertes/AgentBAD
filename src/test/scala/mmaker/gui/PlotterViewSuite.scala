@@ -11,7 +11,7 @@ class PlotterViewSuite extends FunSuite {
 
   test("It should be possible to build and update a plotting chart for the bid/ask spread") {
     val plotter = PlotterView.buildPlotterView("test chart", Array[String]("a","b"))
-
+/*
     plotter.newPoint(1.0f,"a")
     Thread.sleep(1000)
     plotter.newPoint(2.0f,"b")
@@ -19,6 +19,7 @@ class PlotterViewSuite extends FunSuite {
     plotter.newPoint(3.0f,"a")
     Thread.sleep(1000)
     plotter.newPoint(4.0f,"b")
+    */
   }
 
 }

@@ -15,7 +15,7 @@ class PlotterView(title:String,series:Array[String]) extends ApplicationFrame(ti
 
   // Dataset to collect time series data points
   val dataset:DynamicTimeSeriesCollection= {
-    val ds = new DynamicTimeSeriesCollection(series.size, 30, new Second())
+    val ds = new DynamicTimeSeriesCollection(series.size, 5*60, new Second())
     val baseTime:Second = new Second(new java.util.Date)
     ds.setTimeBase(baseTime)
 
@@ -37,30 +37,10 @@ class PlotterView(title:String,series:Array[String]) extends ApplicationFrame(ti
     result
   }
 
-  var counters:Map[String,Int] = series.foldLeft(Map[String,Int]()){ (m,s) => m.put(s,0); m }
-
-
-  def newPoint(value:Float, label:String) {
+  def newPoints(values:Array[Float]) {
     dataset.advanceTime()
-    val num = series.indexWhere(_.equalsIgnoreCase(label))
-
-    val counter = counters(label)
-
-
-    try {
-      dataset.addValue(num,counter,value)
-    } catch {
-      case e:Exception => {
-        println("EXCEPTION ADDING "+num+":"+counter+":"+value)
-        println(e.getMessage)
-        e.printStackTrace()
-      }
-    }
-
-
-    counters(label) = counter+1
+    dataset.appendData(values)
   }
-
 }
 
 

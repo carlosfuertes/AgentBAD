@@ -29,6 +29,9 @@ class DataCollectorActor extends MarketActor {
   val askDataPoints:mutable.MutableList[DataPoint] = mutable.MutableList[DataPoint]()
   val bidDataPoints:mutable.MutableList[DataPoint] = mutable.MutableList[DataPoint]()
 
+  var prevBidData:Float = -1
+  var prevAskData:Float = -1
+
   val plotter = PlotterView.buildPlotterView("Bid/Ask spread", Array[String](DataCollectorActor.BID_TIME_SERIE,DataCollectorActor.ASK_TIME_SERIE))
 
   // When this actor is created, we register into the default exchange
@@ -50,15 +53,19 @@ class DataCollectorActor extends MarketActor {
     side match {
       case Order.ASK => {
         println("ASK "+unitaryPrice+" @ "+date)
-        plotter.newPoint(unitaryPrice.toFloat, DataCollectorActor.ASK_TIME_SERIE)
+        prevAskData = unitaryPrice.toFloat
         askDataPoints += DataPoint(date,unitaryPrice)
       }
 
       case Order.BID => {
         println("BID "+unitaryPrice+" @ "+date)
-        plotter.newPoint(unitaryPrice.toFloat, DataCollectorActor.BID_TIME_SERIE)
+        prevBidData = unitaryPrice.toFloat
         bidDataPoints += DataPoint(date,unitaryPrice)
       }
+    }
+
+    if(prevBidData != -1 && prevAskData != -1) {
+      plotter.newPoints(Array[Float](prevBidData, prevAskData))
     }
   }
 }
