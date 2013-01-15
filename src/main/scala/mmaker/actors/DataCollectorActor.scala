@@ -5,6 +5,7 @@ import collection.mutable
 import java.util.Date
 import mmaker.utils.currency.Currency
 import mmaker.orderbooks.Order
+import mmaker.gui.PlotterView
 
 /**
  * User: Antonio Garrote
@@ -28,6 +29,8 @@ class DataCollectorActor extends MarketActor {
   val askDataPoints:mutable.MutableList[DataPoint] = mutable.MutableList[DataPoint]()
   val bidDataPoints:mutable.MutableList[DataPoint] = mutable.MutableList[DataPoint]()
 
+  val plotter = PlotterView.buildPlotterView("Bid/Ask spread", Array[String](DataCollectorActor.BID_TIME_SERIE,DataCollectorActor.ASK_TIME_SERIE))
+
   // When this actor is created, we register into the default exchange
   override def preStart() { performRegistration() }
 
@@ -47,13 +50,21 @@ class DataCollectorActor extends MarketActor {
     side match {
       case Order.ASK => {
         println("ASK "+unitaryPrice+" @ "+date)
+        plotter.newPoint(unitaryPrice.toFloat, DataCollectorActor.ASK_TIME_SERIE)
         askDataPoints += DataPoint(date,unitaryPrice)
       }
 
       case Order.BID => {
         println("BID "+unitaryPrice+" @ "+date)
+        plotter.newPoint(unitaryPrice.toFloat, DataCollectorActor.BID_TIME_SERIE)
         bidDataPoints += DataPoint(date,unitaryPrice)
       }
     }
   }
+}
+
+
+object DataCollectorActor {
+  val BID_TIME_SERIE = "Bid"
+  val ASK_TIME_SERIE = "Ask"
 }

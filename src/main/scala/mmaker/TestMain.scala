@@ -36,14 +36,14 @@ object TestMain extends App {
 
   val collector = system.actorOf(Props[DataCollectorActor], name="collector")
 
-  val mmaker1 = system.actorOf(Props(new MarketMakerActor(Currency(200),Currency(100))), name="mmaker1")
+  val mmaker1 = system.actorOf(Props(new MarketMakerActor(Currency(100),Currency(200))), name="mmaker1")
   Thread.sleep(1000)
 
 
   MarketActor.activate(mmaker1)
 
   // Run it for 30 secs
-  Thread.sleep(30000)
+  Thread.sleep(300000)
   println("\n\n\n*******************************************************")
   println("Plegando!!!")
   println("*******************************************************\n\n\n")
