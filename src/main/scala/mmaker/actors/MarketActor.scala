@@ -160,7 +160,7 @@ abstract class MarketActor extends Actor with akka.actor.ActorLogging {
   def shoutPrice(side:Int, amount:Long, price:Currency):OrderMsg = {
     var order:OrderMsg = null
 
-    log.debug("** Shouting price in order -> "+(if(side == Order.BID) { "BID/BUY" } else { "ASK/SELL" })+") "+amount+" at "+price)
+    ///log.debug("** Shouting price in order -> "+(if(side == Order.BID) { "BID/BUY" } else { "ASK/SELL" })+") "+amount+" at "+price)
 
     order = side match {
       case Order.BID => price match {

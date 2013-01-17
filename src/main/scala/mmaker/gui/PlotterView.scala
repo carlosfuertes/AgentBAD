@@ -15,7 +15,7 @@ class PlotterView(title:String,series:Array[String]) extends ApplicationFrame(ti
 
   // Dataset to collect time series data points
   val dataset:DynamicTimeSeriesCollection= {
-    val ds = new DynamicTimeSeriesCollection(series.size, 5*60, new Second())
+    val ds = new DynamicTimeSeriesCollection(series.size, 30, new Second())
     val baseTime:Second = new Second(new java.util.Date)
     ds.setTimeBase(baseTime)
 

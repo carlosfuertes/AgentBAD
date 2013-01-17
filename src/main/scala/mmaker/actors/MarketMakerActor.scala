@@ -6,6 +6,8 @@ import mmaker.orderbooks.Order
 import mmaker.messages.OrderProgressMsg
 import mmaker.messages.SellBroadcastMsg
 import mmaker.messages.BuyBroadcastMsg
+import akka.event.LoggingAdapter
+import mmaker.utils.DefaultLoggerAdapter
 
 /**
  * User: Antonio Garrote
@@ -16,8 +18,8 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
   extends MarketActor {
 
   //var this.tradeAmount:Long = tradeAmount
-  var bidder:ZIP8Agent = new ZIP8Agent(ZIP8Agent.BID, bidLimitPrice)
-  var asker:ZIP8Agent = new ZIP8Agent(ZIP8Agent.OFFER,askLimitPrice)
+  var bidder:ZIP8Agent = new ZIP8Agent(ZIP8Agent.BUY, bidLimitPrice, log)
+  var asker:ZIP8Agent = new ZIP8Agent(ZIP8Agent.SELL,askLimitPrice, log)
 
   // When this actor is created, we register into the default exchange
   override def preStart() { performRegistration() }
@@ -91,15 +93,16 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
 /**
  * Implementation of a Zip8 agent according to C++ sample implementation
  */
-class ZIP8Agent(side:Int, limit:Currency) {
+class ZIP8Agent(side:Int, limit:Currency, log:LoggingAdapter=null) {
 
   var job:Int = side// BUYing or SELLing
   var active:Boolean = true // still in the market?
   //var n:Int = 0 // number of deals done
   var willing:Boolean=true // want to make a trade at this price?
   //var able:Int // allowed to trade at this limit price?
-
   var this.limit:Currency = limit // the bottomline price for this agent
+
+  val this.log = if(log == null) { new DefaultLoggerAdapter() }  else { log }
 
   // profit coefficient in determining bid/offer price
   var profit:Currency = if(job == ZIP8Agent.BUY) {
@@ -180,47 +183,65 @@ class ZIP8Agent(side:Int, limit:Currency) {
     if (job == ZIP8Agent.SELL) { // SELLER
       if(status == ZIP8Agent.DEAL) {
         if(this.price <= price) {
+          ///log.debug("** 1) shouting update SELL/*/DEAL/price< :: CHANGE")
           // increment profit
           // could get more? try raising margin
           targetPrice = ((1.0+ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) + ZIP8Agent.randval(0.05)
           profitAlter(Currency(targetPrice))
         } else {
           if(dealType == ZIP8Agent.BID && !willingTrade(price) && active) {
+            ///log.debug("** 2) shouting update SELL/BID/DEAL/price> :: CHANGE")
             // decrement profit
             // wouldnt have got this deal so mark the price down
             targetPrice = ((1.0-ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) - ZIP8Agent.randval(0.05)
             profitAlter(Currency(targetPrice))
+          } else {
+            ///log.debug("** 3) shouting update SELL/ASK/DEAL/price> :: IGNORE")
           }
         }
       } else { // NO_DEAL
         if(dealType == ZIP8Agent.OFFER) {
           if(this.price >= price && active) {
+            ///log.debug("** 4) shouting update SELL/ASK/NO_DEAL/price> :: CHANGE")
             // decrement profit
             // would have asked for more and lost the deal so reduce profit
             targetPrice = ((1.0-ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) - ZIP8Agent.randval(0.05)
             profitAlter(Currency(targetPrice))
+          } else {
+            ///log.debug("** 5) shouting update SELL/ASK/NO_DEAL/price< :: IGNORE")
           }
+        } else {
+          ///log.debug("** 6) shouting update SELL/BID/NO_DEAL/* :: IGNORE")
         }
       }
     } else { // BUYER
       if (status == ZIP8Agent.DEAL) {
         if(this.price >= price) {
+          ///log.debug("** 7) shouting update BUY/*/DEAL/price> :: CHANGE")
           // could get lower price, try raising margin
           targetPrice = ((1.0-ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) - ZIP8Agent.randval(0.05)
           profitAlter(Currency(targetPrice))
         } else {
           if(dealType == ZIP8Agent.OFFER && !willingTrade(price) && active) {
+            ///log.debug("** 8) shouting update BUY/ASK/DEAL/price< :: CHANGE")
             // wouldnt have got this deal so mark the price up
             targetPrice = ((1.0+ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) + ZIP8Agent.randval(0.05)
             profitAlter(Currency(targetPrice))
+          } else {
+            ///log.debug("** 9) shouting update BUY/BID/DEAL/price< :: IGNORE")
           }
         }
       } else { // NO_DEAL
         if(dealType == ZIP8Agent.BID) {
           if(this.price <= price && active){
+            ///log.debug("** 10) shouting update BUY/BID/NO_DEAL/price< :: CHANGE")
             targetPrice = ((1.0+ZIP8Agent.randval(ZIP8Agent.MARK)) * price.toDouble) + ZIP8Agent.randval(0.05)
             profitAlter(Currency(targetPrice))
+          } else {
+            ///log.debug("** 11) shouting update BUY/BID/NO_DEAL/price> :: IGNORE")
           }
+        } else {
+          ///log.debug("** 12) shouting update BUY/ASK/NO_DEAL/* :: IGNORE")
         }
       }
     }

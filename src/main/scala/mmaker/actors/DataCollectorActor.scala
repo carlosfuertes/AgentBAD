@@ -47,7 +47,7 @@ class DataCollectorActor extends MarketActor {
   }
 
   private def registerPoint(side:Int,amount:Long,price:Currency) {
-    val unitaryPrice = price / amount
+    val unitaryPrice = price //price / amount -> always unitary price!
     val date = new Date()
 
     side match {
