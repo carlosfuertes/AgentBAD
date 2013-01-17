@@ -57,8 +57,8 @@ class OrderBook(owner:BookOwner) {
       case Bid(buyAmount,buyPrice) => {
         updateBidVWAP(buyAmount,buyPrice)
 
-        owner.quoteNotification(Order.BID, buyAmount, buyPrice)
-        ///owner.quoteNotification(Order.BID, bidQ, bidVWAP)
+        ///owner.quoteNotification(Order.BID, buyAmount, buyPrice)
+        owner.quoteNotification(Order.BID, bidQ, bidVWAP)
 
         for(ask <- askOrders) {
           if (ask.price <= buyPrice && order.openAmount > 0) {
@@ -83,8 +83,8 @@ class OrderBook(owner:BookOwner) {
       case Ask(sellAmount, sellPrice) => {
         updateAskVWAP(sellAmount,sellPrice)
 
-        owner.quoteNotification(Order.ASK, sellAmount, sellPrice)
-        ///owner.quoteNotification(Order.ASK, askQ, askVWAP)
+        ///owner.quoteNotification(Order.ASK, sellAmount, sellPrice)
+        owner.quoteNotification(Order.ASK, askQ, askVWAP)
 
         for(bid <- bidOrders) {
           if (bid.price >= sellPrice && order.openAmount > 0) {

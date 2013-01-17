@@ -17,3 +17,5 @@ libraryDependencies += "com.typesafe.akka" % "akka-actor" % "2.0.4"
 libraryDependencies += "org.scalatest" %% "scalatest" % "1.8" % "test"
 
 libraryDependencies += "com.typesafe.akka" % "akka-testkit" % "2.0.4" % "test"
+
+libraryDependencies += "jfree" % "jfreechart" % "1.0.13"

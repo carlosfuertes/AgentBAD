@@ -287,7 +287,7 @@ object MarketActor extends SyncRequester {
 
   def get_registered_orders(marketActor:ActorRef):Map[String,OrderTracking] = sync[Map[String,OrderTracking]](marketActor,IntrospectMsg(GET_REGISTERED_ORDERS))
 
-  def get_balance(marketActor:ActorRef):Bank = sync[Bank](marketActor,IntrospectMsg(GET_ACTIVE))
+  def get_balance(marketActor:ActorRef):Bank = sync[Bank](marketActor,IntrospectMsg(GET_BALANCE))
 
   def get_active(marketActor:ActorRef) = sync[Boolean](marketActor,IntrospectMsg(GET_ACTIVE))
 

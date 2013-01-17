@@ -77,6 +77,7 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
     side match {
       case Order.BID => bidder.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.succesToDeal(success), price)
       case Order.ASK => bidder.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.succesToDeal(success), price)
+      case _         => // ignore SELL/BUY, only for market actors
     }
   }
 
@@ -84,6 +85,7 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
     side match {
       case Order.BID => asker.shoutUpdate(ZIP8Agent.BID, ZIP8Agent.succesToDeal(success), price)
       case Order.ASK => asker.shoutUpdate(ZIP8Agent.OFFER, ZIP8Agent.succesToDeal(success), price)
+      case _         => // ignore SELL/BUY, only for market actors
     }
   }
 
@@ -93,7 +95,7 @@ class MarketMakerActor(bidLimitPrice:Currency, askLimitPrice:Currency)
 /**
  * Implementation of a Zip8 agent according to C++ sample implementation
  */
-class ZIP8Agent(side:Int, limit:Currency, log:LoggingAdapter=null) {
+class ZIP8Agent(side:Int, limit:Currency, log:LoggingAdapter=new DefaultLoggerAdapter()) {
 
   var job:Int = side// BUYing or SELLing
   var active:Boolean = true // still in the market?
@@ -102,7 +104,7 @@ class ZIP8Agent(side:Int, limit:Currency, log:LoggingAdapter=null) {
   //var able:Int // allowed to trade at this limit price?
   var this.limit:Currency = limit // the bottomline price for this agent
 
-  val this.log = if(log == null) { new DefaultLoggerAdapter() }  else { log }
+  val this.log = log
 
   // profit coefficient in determining bid/offer price
   var profit:Currency = if(job == ZIP8Agent.BUY) {

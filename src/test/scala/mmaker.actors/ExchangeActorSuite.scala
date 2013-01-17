@@ -66,20 +66,18 @@ class ExchangeActorSuite extends FunSuite {
     val exchange = TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
 
     //println("*** PRE EXCHANGE REF: "+exchange)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     val numMarketActorsBefore = ExchangeActor.numberRegisteredActors(exchange)
     assert(numMarketActorsBefore === 0)
 
     val registrant = TestActorRef(new SimpleRegistrantActor(), "registrant1")
 
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     implicit val timeout = Timeout(MarketActor.CREATION_TIMEOUT)
     val future = registrant ? "isRegistered"
     val result = Await.result(future, MarketActor.REGISTRATION_TIMEOUT)
-
-    //println("*** GOT RESULT: "+result)
     assert(result === true)
 
     val numMarketActorsAfter = ExchangeActor.numberRegisteredActors(exchange)
@@ -97,26 +95,26 @@ class MarketMechanismSuite extends FunSuite {
     TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
 
     //println("*** PRE EXCHANGE REF: "+exchange)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     val mmaker = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     MarketActor.trigger_ask(mmaker)
 
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     MarketActor.trigger_bid(mmaker)
 
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     MarketActor.trigger_buy(mmaker)
 
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     MarketActor.trigger_sell(mmaker)
 
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     val result = MarketActor.get_registered_orders(mmaker)
 
@@ -162,22 +160,22 @@ class MarketMechanismSuite extends FunSuite {
     implicit val system = ActorSystem("MarketMechanismSuite2")
 
     TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     val buyer = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     val seller = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     MarketActor.trigger_ask(seller,10,100)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
     MarketActor.trigger_bid(buyer,5,150)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
     MarketActor.trigger_bid(buyer,5,150)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
     MarketActor.trigger_bid(buyer,5,150)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
 
     val buyerBalance = MarketActor.get_balance(buyer)
@@ -194,23 +192,23 @@ class MarketMechanismSuite extends FunSuite {
     implicit val system = ActorSystem("MarketMechanismSuite3")
 
     TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     val accum1 = TestActorRef(new QuoteAccumulatorActor)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
     val accum2 = TestActorRef(new QuoteAccumulatorActor)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
     val buyer = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
 
     MarketActor.trigger_bid(buyer,5,150)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     val agg1 = QuoteAccumulatorActor.getQuotes(accum1)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
     val agg2 = QuoteAccumulatorActor.getQuotes(accum2)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     assert(agg1.size === 1)
     assert(agg2.size === 1)
@@ -222,16 +220,16 @@ class MarketMechanismSuite extends FunSuite {
   }
 
   test("It should be possible for market actors to cancel previous orders") {
-    implicit val system = ActorSystem("MarketMechanismSuite3")
+    implicit val system = ActorSystem("MarketMechanismSuite4")
 
     TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     val buyer = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     MarketActor.trigger_bid(buyer)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     var orders = MarketActor.get_registered_orders(buyer)
 
@@ -240,7 +238,7 @@ class MarketMechanismSuite extends FunSuite {
 
 
     MarketActor.trigger_cancel_open_order(buyer)
-    Thread.sleep(4000)
+    //Thread.sleep(4000)
 
 
     orders = MarketActor.get_registered_orders(buyer)
@@ -254,28 +252,31 @@ class MarketMechanismSuite extends FunSuite {
 
 
   test("It should be possible to activate a market actor sending the activate message") {
-    implicit val system = ActorSystem("MarketMechanismSuite4")
+/*
+    implicit val system = ActorSystem("MarketMechanismSuite5")
 
     TestActorRef(new ExchangeActor(),Configuration.DEFAULT_EXCHANGE_NAME)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     val buyer = TestActorRef(new MarketMakerActor(Currency(100),Currency(100)))
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
+
 
     var activated = MarketActor.get_active(buyer)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     assert(!activated)
 
     MarketActor.activate(buyer)
-    Thread.sleep(2000)
+
 
     activated = MarketActor.get_active(buyer)
-    Thread.sleep(2000)
+    //Thread.sleep(2000)
 
     assert(activated)
 
     system.shutdown()
+    */
   }
 
 }
